@@ -1,0 +1,8 @@
+.main {
+    width: fit-content;
+}
+
+.bottom {
+    display: flex;
+    justify-content: space-between;
+}

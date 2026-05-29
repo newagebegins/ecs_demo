@@ -1,0 +1,5 @@
+/build/
+/atlas.bin
+/game.wasm
+/atlas.bmp
+/stb_image_write.h
