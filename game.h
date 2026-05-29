@@ -147,6 +147,7 @@ struct ecs
 
     collision_event *CollisionEvents;
     u32 CollisionEventsCount;
+    b8 *WasPushedThisFrame;
 };
 
 #define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool->Dense + Index*sizeof(CompType))

@@ -151,6 +151,8 @@ CollisionDetectionSystem(ecs *ECS)
 internal void
 CollisionResponseSystem(ecs *ECS)
 {
+    ZeroSize(ECS->WasPushedThisFrame, MAX_ENTITY_COUNT*sizeof(ECS->WasPushedThisFrame[0]));
+
     for(u32 EventIndex = 0;
         EventIndex < ECS->CollisionEventsCount;
         ++EventIndex)
@@ -173,41 +175,41 @@ CollisionResponseSystem(ecs *ECS)
 
         Assert(VelocityA || VelocityB);
 
+        v2 SeparationVector = Event->SeparationVector;
+
         if(VelocityA && VelocityB)
         {
-            PositionA->Position += Event->SeparationVector*0.5f;
-            PositionB->Position -= Event->SeparationVector*0.5f;
-        }
-        else if(VelocityA)
-        {
-            PositionA->Position += Event->SeparationVector;
-        }
-        else
-        {
-            PositionB->Position -= Event->SeparationVector;
+            SeparationVector *= 0.5f;
         }
 
-        if(Event->SeparationVector.x != 0.0f)
+        r32 VelXScale;
+        r32 VelYScale;
+
+        if(SeparationVector.x != 0.0f)
         {
-            if(VelocityA)
-            {
-                VelocityA->Velocity.x = -VelocityA->Velocity.x;
-            }
-            if(VelocityB)
-            {
-                VelocityB->Velocity.x = -VelocityB->Velocity.x;
-            }
+            VelXScale = -1.0f;
+            VelYScale = 1.0f;
         }
         else
         {
-            if(VelocityA)
-            {
-                VelocityA->Velocity.y = -VelocityA->Velocity.y;
-            }
-            if(VelocityB)
-            {
-                VelocityB->Velocity.y = -VelocityB->Velocity.y;
-            }
+            VelXScale = 1.0f;
+            VelYScale = -1.0f;
+        }
+
+        if(VelocityA && !ECS->WasPushedThisFrame[Event->EntityA.Value])
+        {
+            PositionA->Position += SeparationVector;
+            VelocityA->Velocity.x *= VelXScale;
+            VelocityA->Velocity.y *= VelYScale;
+            ECS->WasPushedThisFrame[Event->EntityA.Value] = true;
+        }
+
+        if(VelocityB && !ECS->WasPushedThisFrame[Event->EntityB.Value])
+        {
+            PositionB->Position -= SeparationVector;
+            VelocityB->Velocity.x *= VelXScale;
+            VelocityB->Velocity.y *= VelYScale;
+            ECS->WasPushedThisFrame[Event->EntityB.Value] = true;
         }
     }
 }
@@ -245,6 +247,8 @@ AllocateECS(memory_arena *Arena)
 
     ECS->CollisionEvents = PushArray(Arena, MAX_COLLISION_EVENTS_COUNT, collision_event);
     ECS->CollisionEventsCount = 0;
+
+    ECS->WasPushedThisFrame = PushArray(Arena, MAX_ENTITY_COUNT, b8);
 
     return(ECS);
 }
