@@ -3,19 +3,30 @@
 #include "render_group.cpp"
 
 internal void
-SpriteSystem(ecs *ECS, render_group *RenderGroup)
+SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
 {
     for(u32 SpriteIndex = 0;
         SpriteIndex < ECS->sprite_comp_Pool->Count;
         ++SpriteIndex)
     {
         sprite_comp *Sprite = GetComp(ECS, sprite_comp, SpriteIndex);
+
+        Sprite->FrameTimer += dt;
+        if(Sprite->FrameTimer >= Sprite->FrameDuration)
+        {
+            Sprite->FrameTimer -= Sprite->FrameDuration;
+            bitmap_info *Info = RenderGroup->BitmapInfos + Sprite->BitmapID;
+            Sprite->FrameIndex = (Sprite->FrameIndex + 1) % Info->FrameCount;
+        }
+
         entity_id EntityID = ECS->sprite_comp_Pool->DenseToEntity[SpriteIndex];
         s32 PositionIndex = ECS->position_comp_Pool->EntityToDense[EntityID.Value];
         Assert(PositionIndex >= 0);
         position_comp *Position = GetComp(ECS, position_comp, PositionIndex);
+
         PushBitmap(RenderGroup, Sprite->BitmapID,
-                   (s32)Position->Position.x, (s32)Position->Position.y);
+                   (s32)Position->Position.x, (s32)Position->Position.y,
+                   Sprite->FrameIndex);
     }
 }
 
@@ -86,6 +97,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             PositionComp->Position = V2(20.0f + EntityIndex*20.0f, 30.0f);
             sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
             SpriteComp->BitmapID = Bitmap_Guy;
+            SpriteComp->FrameTimer = 0.0f;
+            SpriteComp->FrameDuration = 0.2f;
+            SpriteComp->FrameIndex = 0;
         }
 
         GameState->IsInitialized = true;
@@ -96,7 +110,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializeRenderGroup(&RenderGroup, &RenderArena, GameState->BitmapInfos);
     PushClear(&RenderGroup, Color_Black);
 
-    SpriteSystem(GameState->ECS, &RenderGroup);
+    SpriteSystem(GameState->ECS, &RenderGroup, Input->dt);
 
     Memory->RenderListUsed = (u32)RenderArena.Used;
     Memory->RenderListBitmapCount = RenderGroup.BitmapCount;

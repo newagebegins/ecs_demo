@@ -103,6 +103,9 @@ struct position_comp
 struct sprite_comp
 {
     bitmap_id BitmapID;
+    r32 FrameTimer;
+    r32 FrameDuration;
+    u32 FrameIndex;
 };
 
 struct comp_pool
