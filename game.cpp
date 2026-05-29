@@ -44,7 +44,28 @@ MovementSystem(ecs *ECS, r32 dt)
         Assert(PositionCompIndex >= 0);
         position_comp *PositionComp = GetComp(ECS, position_comp, PositionCompIndex);
 
-        PositionComp->Position += VelocityComp->Velocity * dt;
+        v2 P = PositionComp->Position;
+        P += VelocityComp->Velocity * dt;
+
+        if(P.x < 0.0f)
+        {
+            P.x += BACKBUFFER_WIDTH;
+        }
+        else if(P.x >= BACKBUFFER_WIDTH)
+        {
+            P.x -= BACKBUFFER_WIDTH;
+        }
+
+        if(P.y < 0.0f)
+        {
+            P.y += BACKBUFFER_HEIGHT;
+        }
+        else if(P.y >= BACKBUFFER_HEIGHT)
+        {
+            P.y -= BACKBUFFER_HEIGHT;
+        }
+
+        PositionComp->Position = P;
     }
 }
 
@@ -134,7 +155,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     PositionComp->Position = V2(X, Y);
 
                     velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
-                    VelocityComp->Velocity = V2(20.0f, 0.0f);
+                    VelocityComp->Velocity = V2(20.0f, 20.0f);
 
                     sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
                     SpriteComp->BitmapID = Bitmap_Guy;

@@ -48,7 +48,7 @@ PushRect(render_group *Group, rectangle2i Rect, color Color = Color_White, bool3
 internal void
 PushBitmap(render_group *Group, bitmap_id ID, int32 MinX, int32 MinY,
            u32 FrameIndex = 0, bool32 MirrorX = false, color Color = Color_White,
-           bool32 WrapX = true, s32 FrameOffsetX = 0, s32 VisibleWidthArg = -1)
+           bool32 WrapX = true, bool32 WrapY = true, s32 FrameOffsetX = 0, s32 VisibleWidthArg = -1)
 {
     ++Group->BitmapCount;
 
@@ -102,19 +102,46 @@ PushBitmap(render_group *Group, bitmap_id ID, int32 MinX, int32 MinY,
     Entry->UVOffset = UVOffset;
     Entry->UVScale = UVScale;
 
-    if(WrapX)
+    b32 IntersectsEdgeX = false;
+    b32 IntersectsEdgeY = false;
+
+    s32 MaxX = MinX + VisibleWidth;
+    s32 WrappedMinX = MinX;
+    if(MinX < 0)
     {
-        int32 MaxX = MinX + VisibleWidth;
-        if(MinX < 0)
-        {
-            MinX += BACKBUFFER_WIDTH;
-            PushBitmap(Group, ID, MinX, MinY, FrameIndex, MirrorX, Color, false, FrameOffsetX, VisibleWidthArg);
-        }
-        else if(MaxX > BACKBUFFER_WIDTH)
-        {
-            MinX -= BACKBUFFER_WIDTH;
-            PushBitmap(Group, ID, MinX, MinY, FrameIndex, MirrorX, Color, false, FrameOffsetX, VisibleWidthArg);
-        }
+        WrappedMinX = MinX + BACKBUFFER_WIDTH;
+        IntersectsEdgeX = true;
+    }
+    else if(MaxX > BACKBUFFER_WIDTH)
+    {
+        WrappedMinX = MinX - BACKBUFFER_WIDTH;
+        IntersectsEdgeX = true;
+    }
+
+    s32 MaxY = MinY + Info->FrameHeight;
+    s32 WrappedMinY = MinY;
+    if(MinY < 0)
+    {
+        WrappedMinY = MinY + BACKBUFFER_HEIGHT;
+        IntersectsEdgeY = true;
+    }
+    else if(MaxY > BACKBUFFER_HEIGHT)
+    {
+        WrappedMinY = MinY - BACKBUFFER_HEIGHT;
+        IntersectsEdgeY = true;
+    }
+
+    if(WrapX && IntersectsEdgeX)
+    {
+        PushBitmap(Group, ID, WrappedMinX, MinY, FrameIndex, MirrorX, Color, false, false, FrameOffsetX, VisibleWidthArg);
+    }
+    if(WrapY && IntersectsEdgeY)
+    {
+        PushBitmap(Group, ID, MinX, WrappedMinY, FrameIndex, MirrorX, Color, false, false, FrameOffsetX, VisibleWidthArg);
+    }
+    if(WrapX && WrapY && IntersectsEdgeX && IntersectsEdgeY)
+    {
+        PushBitmap(Group, ID, WrappedMinX, WrappedMinY, FrameIndex, MirrorX, Color, false, false, FrameOffsetX, VisibleWidthArg);
     }
 }
 
