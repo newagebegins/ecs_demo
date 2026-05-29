@@ -116,6 +116,7 @@ struct sprite_comp
     r32 FrameTimer;
     r32 FrameDuration;
     s32 FrameIndex;
+    color Color;
 };
 
 struct comp_pool

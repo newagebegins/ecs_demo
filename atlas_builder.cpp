@@ -124,6 +124,7 @@ int main(void)
     game_bitmap FontBitmap = LoadBMP("assets/font.bmp");
     game_bitmap GuyBitmap = LoadBMP("assets/guy.bmp");
     game_bitmap BombBitmap = LoadBMP("assets/bomb.bmp");
+    game_bitmap WallBitmap = LoadBMP("assets/wall.bmp");
 
     atlas Atlas_ = {};
     atlas *Atlas = &Atlas_;
@@ -139,6 +140,7 @@ int main(void)
     CopyBitmaps(Atlas, Bitmap_Font, &FontBitmap, 1, &DestY, 8, 8);
     CopyBitmaps(Atlas, Bitmap_Guy, &GuyBitmap, 1, &DestY, 16);
     CopyBitmaps(Atlas, Bitmap_Bomb, &BombBitmap, 1, &DestY);
+    CopyBitmaps(Atlas, Bitmap_Wall, &WallBitmap, 1, &DestY);
 
     Assert(DestY <= ATLAS_HEIGHT);
 

@@ -9,6 +9,7 @@ enum bitmap_id
     Bitmap_Font,
     Bitmap_Guy,
     Bitmap_Bomb,
+    Bitmap_Wall,
 
     Bitmap_Count,
 };

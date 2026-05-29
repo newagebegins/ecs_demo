@@ -27,7 +27,7 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
         PushBitmap(RenderGroup, Sprite->BitmapID,
                    (s32)(Position->Position.x - (r32)Info->FrameWidth*0.5f),
                    (s32)(Position->Position.y - (r32)Info->FrameHeight*0.5f),
-                   Sprite->FrameIndex);
+                   Sprite->FrameIndex, false, Sprite->Color);
 
 #if 0
         s32 HitboxIndex = ECS->hitbox_comp_Pool->EntityToDense[EntityID.Value];
@@ -166,25 +166,48 @@ CollisionResponseSystem(ecs *ECS)
         position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
 
         s32 VelocityAIndex = ECS->velocity_comp_Pool->EntityToDense[Event->EntityA.Value];
-        Assert(VelocityAIndex >= 0);
-        velocity_comp *VelocityA = GetComp(ECS, velocity_comp, VelocityAIndex);
+        velocity_comp *VelocityA = (VelocityAIndex >= 0) ? GetComp(ECS, velocity_comp, VelocityAIndex) : 0;
 
         s32 VelocityBIndex = ECS->velocity_comp_Pool->EntityToDense[Event->EntityB.Value];
-        Assert(VelocityBIndex >= 0);
-        velocity_comp *VelocityB = GetComp(ECS, velocity_comp, VelocityBIndex);
+        velocity_comp *VelocityB = (VelocityBIndex >= 0) ? GetComp(ECS, velocity_comp, VelocityBIndex) : 0;
 
-        PositionA->Position += Event->SeparationVector*0.5f;
-        PositionB->Position -= Event->SeparationVector*0.5f;
+        Assert(VelocityA || VelocityB);
 
-        if(Event->SeparationVector.x != 0.0f)
+        if(VelocityA && VelocityB)
         {
-            VelocityA->Velocity.x = -VelocityA->Velocity.x;
-            VelocityB->Velocity.x = -VelocityB->Velocity.x;
+            PositionA->Position += Event->SeparationVector*0.5f;
+            PositionB->Position -= Event->SeparationVector*0.5f;
+        }
+        else if(VelocityA)
+        {
+            PositionA->Position += Event->SeparationVector;
         }
         else
         {
-            VelocityA->Velocity.y = -VelocityA->Velocity.y;
-            VelocityB->Velocity.y = -VelocityB->Velocity.y;
+            PositionB->Position -= Event->SeparationVector;
+        }
+
+        if(Event->SeparationVector.x != 0.0f)
+        {
+            if(VelocityA)
+            {
+                VelocityA->Velocity.x = -VelocityA->Velocity.x;
+            }
+            if(VelocityB)
+            {
+                VelocityB->Velocity.x = -VelocityB->Velocity.x;
+            }
+        }
+        else
+        {
+            if(VelocityA)
+            {
+                VelocityA->Velocity.y = -VelocityA->Velocity.y;
+            }
+            if(VelocityB)
+            {
+                VelocityB->Velocity.y = -VelocityB->Velocity.y;
+            }
         }
     }
 }
@@ -260,6 +283,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->ECS = AllocateECS(&GameState->MainArena);
 
         u32 CellSize = 16;
+        r32 CellHalfDim = (r32)(CellSize/2);
         u32 CellCountX = BACKBUFFER_WIDTH/CellSize;
         u32 CellCountY = BACKBUFFER_HEIGHT/CellSize;
 
@@ -271,11 +295,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 CellX < CellCountX;
                 ++CellX)
             {
-                if(RandomChoice(&GameState->GeneralEntropy, 8) == 1)
-                {
-                    r32 X = (r32)(CellX*CellSize);
-                    r32 Y = (r32)(CellY*CellSize);
+                r32 X = (r32)(CellX*CellSize) + CellHalfDim;
+                r32 Y = (r32)(CellY*CellSize) + CellHalfDim;
 
+                u32 Choice = RandomChoice(&GameState->GeneralEntropy, 16);
+                if(Choice == 1 || Choice == 2)
+                {
                     entity_id EntityID = AddEntity(GameState->ECS);
 
                     position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
@@ -294,6 +319,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     SpriteComp->FrameTimer = 0.0f;
                     SpriteComp->FrameDuration = 0.2f;
                     SpriteComp->FrameIndex = 0;
+                    SpriteComp->Color = Color_White;
+                }
+                else if(Choice == 3 || Choice == 4)
+                {
+                    entity_id EntityID = AddEntity(GameState->ECS);
+
+                    position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
+                    PositionComp->Position = V2(X, Y);
+
+                    hitbox_comp *HitboxComp = AddComponent(GameState->ECS, EntityID, hitbox_comp);
+                    HitboxComp->HalfDim = V2(8.0f, 8.0f);
+
+                    sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
+                    SpriteComp->BitmapID = Bitmap_Wall;
+                    SpriteComp->FrameTimer = 0.0f;
+                    SpriteComp->FrameDuration = 0.0f;
+                    SpriteComp->FrameIndex = 0;
+                    SpriteComp->Color = Color_Cyan;
                 }
             }
         }
