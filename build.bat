@@ -8,7 +8,7 @@ set CommonLinkerFlags=/opt:ref /incremental:no
 
 del game.pdb 2> NUL
 
-cl %CommonCompilerFlags% /DOUTPUT_BMP=0 /D_CRT_SECURE_NO_WARNINGS ..\atlas_builder.cpp /link %CommonLinkerFlags%
+cl %CommonCompilerFlags% /DOUTPUT_BMP=1 /D_CRT_SECURE_NO_WARNINGS ..\atlas_builder.cpp /link %CommonLinkerFlags%
 
 echo Building DLL... > lock.tmp
 cl %CommonCompilerFlags% /Fmgame.map /LD ..\game.cpp /link %CommonLinkerFlags% /EXPORT:GameUpdateAndRender

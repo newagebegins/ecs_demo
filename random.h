@@ -49,7 +49,7 @@ RandomUnilateral(random_series *Series)
 }
 
 inline real32
-RandomBiilateral(random_series *Series)
+RandomBilateral(random_series *Series)
 {
     real32 Result = 2.0f*RandomUnilateral(Series) - 1.0f;
     return(Result);

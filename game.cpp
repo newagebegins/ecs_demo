@@ -155,7 +155,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     PositionComp->Position = V2(X, Y);
 
                     velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
-                    VelocityComp->Velocity = V2(20.0f, 20.0f);
+                    VelocityComp->Velocity =
+                        20.0f*Normalize(V2(RandomBilateral(&GameState->GeneralEntropy),
+                                           RandomBilateral(&GameState->GeneralEntropy)));
 
                     sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
                     SpriteComp->BitmapID = Bitmap_Guy;

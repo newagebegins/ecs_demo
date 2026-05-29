@@ -67,28 +67,4 @@ ModuloN(int32 Value, int32 N)
     return(Result);
 }
 
-#if 0
-inline real32
-Cos(real32 Angle)
-{
-#if WASM_BUILD
-    real32 Result = __builtin_cosf(Angle);
-#else
-    real32 Result = cosf(Angle);
-#endif
-    return(Result);
-}
-
-inline real32
-Sin(real32 Angle)
-{
-#if WASM_BUILD
-    real32 Result = __builtin_sinf(Angle);
-#else
-    real32 Result = sinf(Angle);
-#endif
-    return(Result);
-}
-#endif
-
 #endif

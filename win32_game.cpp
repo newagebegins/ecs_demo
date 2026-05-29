@@ -547,7 +547,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, char *CommandLine, int ShowC
     game_memory Memory = {};
 
     Memory.PermanentStorageSize = Megabytes(2);
-    Memory.RenderListSize = Kilobytes(64);
+    Memory.RenderListSize = Kilobytes(256);
     memory_index TotalMemorySize = Memory.PermanentStorageSize + Memory.RenderListSize;
 
     Memory.PermanentStorage = VirtualAlloc(BaseAddress, TotalMemorySize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
@@ -750,7 +750,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, char *CommandLine, int ShowC
         OldInput = TempInput;
         *NewInput = *OldInput;
 
-#if 0
+#if 1
         real32 SecondsElapsed = (real32)CountsElapsed / (real32)CountsPerSecond;
         real32 MSElapsed = 1000.0f*SecondsElapsed;
         real32 FramesPerSecond = 1.0f / SecondsElapsed;
