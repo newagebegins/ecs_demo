@@ -100,6 +100,11 @@ struct position_comp
     v2 Position;
 };
 
+struct velocity_comp
+{
+    v2 Velocity;
+};
+
 struct sprite_comp
 {
     bitmap_id BitmapID;
@@ -119,6 +124,7 @@ struct comp_pool
 struct ecs
 {
     comp_pool *position_comp_Pool;
+    comp_pool *velocity_comp_Pool;
     comp_pool *sprite_comp_Pool;
 
     u32 EntityCount;

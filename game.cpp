@@ -30,6 +30,24 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
     }
 }
 
+internal void
+MovementSystem(ecs *ECS, r32 dt)
+{
+    for(u32 VelocityCompIndex = 0;
+        VelocityCompIndex < ECS->velocity_comp_Pool->Count;
+        ++VelocityCompIndex)
+    {
+        velocity_comp *VelocityComp = GetComp(ECS, velocity_comp, VelocityCompIndex);
+
+        entity_id EntityID = ECS->velocity_comp_Pool->DenseToEntity[VelocityCompIndex];
+        s32 PositionCompIndex = ECS->position_comp_Pool->EntityToDense[EntityID.Value];
+        Assert(PositionCompIndex >= 0);
+        position_comp *PositionComp = GetComp(ECS, position_comp, PositionCompIndex);
+
+        PositionComp->Position += VelocityComp->Velocity * dt;
+    }
+}
+
 internal comp_pool *
 AllocateCompPool(memory_arena *Arena, u32 CompSize)
 {
@@ -54,6 +72,7 @@ AllocateECS(memory_arena *Arena)
 {
     ecs *ECS = PushStruct(Arena, ecs);
     ECS->position_comp_Pool = AllocateCompPool(Arena, sizeof(position_comp));
+    ECS->velocity_comp_Pool = AllocateCompPool(Arena, sizeof(velocity_comp));
     ECS->sprite_comp_Pool = AllocateCompPool(Arena, sizeof(sprite_comp));
     return(ECS);
 }
@@ -93,8 +112,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             ++EntityIndex)
         {
             entity_id EntityID = AddEntity(GameState->ECS);
+
             position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
             PositionComp->Position = V2(20.0f + EntityIndex*20.0f, 30.0f);
+
+            velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
+            VelocityComp->Velocity = V2(20.0f, 0.0f);
+
             sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
             SpriteComp->BitmapID = Bitmap_Guy;
             SpriteComp->FrameTimer = 0.0f;
@@ -110,6 +134,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializeRenderGroup(&RenderGroup, &RenderArena, GameState->BitmapInfos);
     PushClear(&RenderGroup, Color_Black);
 
+    MovementSystem(GameState->ECS, Input->dt);
     SpriteSystem(GameState->ECS, &RenderGroup, Input->dt);
 
     Memory->RenderListUsed = (u32)RenderArena.Used;
