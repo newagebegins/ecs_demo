@@ -5,7 +5,7 @@ let frameTimeElement = document.getElementById("frame-time");
 
 function main()
 {
-    const memory = new WebAssembly.Memory({ initial: 2 });
+    const memory = new WebAssembly.Memory({ initial: 32 });
 
     Promise.all([
         WebAssembly.instantiateStreaming(fetch("game.wasm"), { env: { memory } }),
@@ -38,12 +38,12 @@ function main()
         const gameInputSize = gameInputLength*Uint32Array.BYTES_PER_ELEMENT;
 
         let permanentStorageOffset = gameInputOffset + gameInputSize;
-        let permanentStorageSize = 4096;
+        let permanentStorageSize = 1*1024*1024;
 
         let bitmapInfosOffset = permanentStorageOffset + permanentStorageSize;
 
         let renderListOffset = bitmapInfosOffset + bitmapInfosSize;
-        let renderListSize = 8192;
+        let renderListSize = 64*1024;
 
         const renderListUsedIndex = 4;
         const renderListBitmapCountIndex = 5;

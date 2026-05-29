@@ -546,8 +546,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, char *CommandLine, int ShowC
     
     game_memory Memory = {};
 
-    Memory.PermanentStorageSize = Megabytes(16);
-    Memory.RenderListSize = Kilobytes(8);
+    Memory.PermanentStorageSize = Megabytes(2);
+    Memory.RenderListSize = Kilobytes(64);
     memory_index TotalMemorySize = Memory.PermanentStorageSize + Memory.RenderListSize;
 
     Memory.PermanentStorage = VirtualAlloc(BaseAddress, TotalMemorySize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);

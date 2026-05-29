@@ -5,7 +5,7 @@
 internal void
 SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
 {
-    for(u32 SpriteIndex = 0;
+    for(s32 SpriteIndex = 0;
         SpriteIndex < ECS->sprite_comp_Pool->Count;
         ++SpriteIndex)
     {
@@ -33,7 +33,7 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
 internal void
 MovementSystem(ecs *ECS, r32 dt)
 {
-    for(u32 VelocityCompIndex = 0;
+    for(s32 VelocityCompIndex = 0;
         VelocityCompIndex < ECS->velocity_comp_Pool->Count;
         ++VelocityCompIndex)
     {
@@ -57,11 +57,12 @@ AllocateCompPool(memory_arena *Arena, u32 CompSize)
     Pool->DenseToEntity = PushArray(Arena, MAX_ENTITY_COUNT, entity_id);
 
     Pool->EntityToDense = PushArray(Arena, MAX_ENTITY_COUNT, s32);
-    for(u32 EntityID = 0;
-        EntityID < MAX_ENTITY_COUNT;
-        ++EntityID)
+    for(u32 Index = 0;
+        Index < MAX_ENTITY_COUNT;
+        ++Index)
     {
-        Pool->EntityToDense[EntityID] = -1;
+        Pool->EntityToDense[Index] = -1;
+        Pool->DenseToEntity[Index].Value = -1;
     }
 
     return(Pool);
@@ -90,7 +91,9 @@ AddComponent_(comp_pool *Pool, entity_id EntityID, u32 CompSize)
     Assert(Pool->Count < MAX_ENTITY_COUNT);
     u32 DenseIndex = Pool->Count++;
     void *Component = (u8 *)Pool->Dense + DenseIndex*CompSize;
+    Assert(Pool->DenseToEntity[DenseIndex].Value == -1);
     Pool->DenseToEntity[DenseIndex] = EntityID;
+    Assert(Pool->EntityToDense[EntityID.Value] == -1);
     Pool->EntityToDense[EntityID.Value] = DenseIndex;
     return(Component);
 }
@@ -105,25 +108,41 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         GameState->MainArena = MakeArena(GameState + 1, Memory->PermanentStorageSize - sizeof(game_state));
         GameState->BitmapInfos = BitmapInfos;
+        GameState->GeneralEntropy = RandomSeries(17);
         GameState->ECS = AllocateECS(&GameState->MainArena);
 
-        for(u32 EntityIndex = 0;
-            EntityIndex < 10;
-            ++EntityIndex)
+        u32 CellSize = 16;
+        u32 CellCountX = BACKBUFFER_WIDTH/CellSize;
+        u32 CellCountY = BACKBUFFER_HEIGHT/CellSize;
+
+        for(u32 CellY = 0;
+            CellY < CellCountY;
+            ++CellY)
         {
-            entity_id EntityID = AddEntity(GameState->ECS);
+            for(u32 CellX = 0;
+                CellX < CellCountX;
+                ++CellX)
+            {
+                if(RandomChoice(&GameState->GeneralEntropy, 8) == 1)
+                {
+                    r32 X = (r32)(CellX*CellSize);
+                    r32 Y = (r32)(CellY*CellSize);
 
-            position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
-            PositionComp->Position = V2(20.0f + EntityIndex*20.0f, 30.0f);
+                    entity_id EntityID = AddEntity(GameState->ECS);
 
-            velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
-            VelocityComp->Velocity = V2(20.0f, 0.0f);
+                    position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
+                    PositionComp->Position = V2(X, Y);
 
-            sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
-            SpriteComp->BitmapID = Bitmap_Guy;
-            SpriteComp->FrameTimer = 0.0f;
-            SpriteComp->FrameDuration = 0.2f;
-            SpriteComp->FrameIndex = 0;
+                    velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
+                    VelocityComp->Velocity = V2(20.0f, 0.0f);
+
+                    sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
+                    SpriteComp->BitmapID = Bitmap_Guy;
+                    SpriteComp->FrameTimer = 0.0f;
+                    SpriteComp->FrameDuration = 0.2f;
+                    SpriteComp->FrameIndex = 0;
+                }
+            }
         }
 
         GameState->IsInitialized = true;

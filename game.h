@@ -88,11 +88,11 @@ ClearArena(memory_arena *Arena)
 
 #include "render_group.h"
 
-#define MAX_ENTITY_COUNT 1024
+#define MAX_ENTITY_COUNT 8192
 
 struct entity_id
 {
-    u32 Value;
+    s32 Value;
 };
 
 struct position_comp
@@ -110,12 +110,12 @@ struct sprite_comp
     bitmap_id BitmapID;
     r32 FrameTimer;
     r32 FrameDuration;
-    u32 FrameIndex;
+    s32 FrameIndex;
 };
 
 struct comp_pool
 {
-    u32 Count;
+    s32 Count;
     void *Dense;
     entity_id *DenseToEntity;
     s32 *EntityToDense;
@@ -127,7 +127,7 @@ struct ecs
     comp_pool *velocity_comp_Pool;
     comp_pool *sprite_comp_Pool;
 
-    u32 EntityCount;
+    s32 EntityCount;
 };
 
 #define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool->Dense + Index*sizeof(CompType))
@@ -137,6 +137,7 @@ struct game_state
     b32 IsInitialized;
     memory_arena MainArena;
     bitmap_info *BitmapInfos;
+    random_series GeneralEntropy;
     ecs *ECS;
 };
 
