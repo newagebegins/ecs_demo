@@ -9,8 +9,8 @@ PushClear(render_group *Group, color Color)
 }
 
 internal void
-PushRect(render_group *Group, int32 MinX, int32 MinY, int32 MaxX, int32 MaxY,
-         color Color = Color_White, bool32 WrapX = true)
+PushRect(render_group *Group, s32 MinX, s32 MinY, s32 MaxX, s32 MaxY,
+         color Color = Color_White, b32 WrapX = true, b32 WrapY = true)
 {
     render_entry_base *Base = PushStruct(Group->Arena, render_entry_base);
     Base->ID = RenderEntry_Rect;
@@ -22,20 +22,51 @@ PushRect(render_group *Group, int32 MinX, int32 MinY, int32 MaxX, int32 MaxY,
     Entry->MaxY = MaxY;
     Entry->Color = Group->Palette[Color];
 
-    if(WrapX)
+    b32 IntersectsEdgeX = false;
+    b32 IntersectsEdgeY = false;
+
+    s32 WrappedMinX = MinX;
+    s32 WrappedMaxX = MaxX;
+    s32 WrappedMinY = MinY;
+    s32 WrappedMaxY = MaxY;
+
+    if(WrappedMinX < 0)
     {
-        if(MinX < 0)
-        {
-            MinX += BACKBUFFER_WIDTH;
-            MaxX += BACKBUFFER_WIDTH;
-            PushRect(Group, MinX, MinY, MaxX, MaxY, Color, false);
-        }
-        else if(MaxX > BACKBUFFER_WIDTH)
-        {
-            MaxX -= BACKBUFFER_WIDTH;
-            MinX -= BACKBUFFER_WIDTH;
-            PushRect(Group, MinX, MinY, MaxX, MaxY, Color, false);
-        }
+        WrappedMinX += BACKBUFFER_WIDTH;
+        WrappedMaxX += BACKBUFFER_WIDTH;
+        IntersectsEdgeX = true;
+    }
+    else if(WrappedMaxX > BACKBUFFER_WIDTH)
+    {
+        WrappedMaxX -= BACKBUFFER_WIDTH;
+        WrappedMinX -= BACKBUFFER_WIDTH;
+        IntersectsEdgeX = true;
+    }
+
+    if(WrappedMinY < 0)
+    {
+        WrappedMinY += BACKBUFFER_HEIGHT;
+        WrappedMaxY += BACKBUFFER_HEIGHT;
+        IntersectsEdgeY = true;
+    }
+    else if(WrappedMaxY > BACKBUFFER_HEIGHT)
+    {
+        WrappedMaxY -= BACKBUFFER_HEIGHT;
+        WrappedMinY -= BACKBUFFER_HEIGHT;
+        IntersectsEdgeY = true;
+    }
+
+    if(WrapX && IntersectsEdgeX)
+    {
+        PushRect(Group, WrappedMinX, MinY, WrappedMaxX, MaxY, Color, false, false);
+    }
+    if(WrapY && IntersectsEdgeY)
+    {
+        PushRect(Group, MinX, WrappedMinY, MaxX, WrappedMaxY, Color, false, false);
+    }
+    if(WrapX && WrapY && IntersectsEdgeX && IntersectsEdgeY)
+    {
+        PushRect(Group, WrappedMinX, WrappedMinY, WrappedMaxX, WrappedMaxY, Color, false, false);
     }
 }
 

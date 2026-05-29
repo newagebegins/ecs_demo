@@ -42,6 +42,12 @@ union v4
     real32 E[4];
 };
 
+struct rectangle2
+{
+    v2 Min;
+    v2 Max;
+};
+
 struct rectangle2i
 {
     int32 MinX, MinY;
@@ -541,6 +547,34 @@ HalfOpenIntervalsOverlapModN(int32 Start0, int32 End0, int32 Start1, int32 End1,
     return(Result);
 }
 
+inline b32
+IntervalsOverlapModN(r32 Start0, r32 End0, r32 Start1, r32 End1, r32 N)
+{
+    b32 Result = ((ModuloN(Start0 - Start1, N) <= ModuloN(End1 - Start1, N)) ||
+                  (ModuloN(Start1 - Start0, N) <= ModuloN(End0 - Start0, N)));
+    return(Result);
+}
+
+//
+// NOTE(slava): rectangle2 operations
+//
+
+inline rectangle2
+RectCenterHalfDim(v2 Center, v2 HalfDim)
+{
+    rectangle2 Result;
+    Result.Min = Center - HalfDim;
+    Result.Max = Center + HalfDim;
+    return(Result);
+}
+
+inline b32
+RectsOverlapWrapXY(rectangle2 A, rectangle2 B, r32 WrapX, r32 WrapY)
+{
+    bool32 Result = (IntervalsOverlapModN(A.Min.x, A.Max.x, B.Min.x, B.Max.x, WrapX) &&
+                     IntervalsOverlapModN(A.Min.y, A.Max.y, B.Min.y, B.Max.y, WrapY));
+    return(Result);
+}
 
 //
 // NOTE(slava): rectangle2i operations

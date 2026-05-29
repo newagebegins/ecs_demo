@@ -67,4 +67,19 @@ ModuloN(int32 Value, int32 N)
     return(Result);
 }
 
+inline r32
+ModuloN(r32 Value, r32 N)
+{
+#if WASM_BUILD
+    r32 Result = __builtin_fmodf(Value, N);
+#else
+    r32 Result = fmodf(Value, N);
+#endif
+    if(Result < 0.0f)
+    {
+        Result += N;
+    }
+    return(Result);
+}
+
 #endif

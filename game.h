@@ -105,6 +105,11 @@ struct velocity_comp
     v2 Velocity;
 };
 
+struct hitbox_comp
+{
+    v2 HalfDim;
+};
+
 struct sprite_comp
 {
     bitmap_id BitmapID;
@@ -121,13 +126,26 @@ struct comp_pool
     s32 *EntityToDense;
 };
 
+struct collision_event
+{
+    entity_id EntityA;
+    entity_id EntityB;
+    v2 SeparationVector;
+};
+
+#define MAX_COLLISION_EVENTS_COUNT 4096
+
 struct ecs
 {
     comp_pool *position_comp_Pool;
     comp_pool *velocity_comp_Pool;
+    comp_pool *hitbox_comp_Pool;
     comp_pool *sprite_comp_Pool;
 
     s32 EntityCount;
+
+    collision_event *CollisionEvents;
+    u32 CollisionEventsCount;
 };
 
 #define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool->Dense + Index*sizeof(CompType))
