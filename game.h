@@ -131,6 +131,7 @@ struct collision_event
 {
     entity_id EntityA;
     entity_id EntityB;
+    // NOTE(slava): Points to A
     v2 SeparationVector;
 };
 

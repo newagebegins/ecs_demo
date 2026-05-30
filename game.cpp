@@ -122,11 +122,28 @@ CollisionDetectionSystem(ecs *ECS)
             Assert(PositionBIndex >= 0);
             position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
 
-            r32 PosDiffX = PositionA->Position.x - PositionB->Position.x;
-            r32 PosDiffY = PositionA->Position.y - PositionB->Position.y;
+            r32 DiffX = PositionA->Position.x - PositionB->Position.x;
+            r32 DiffY = PositionA->Position.y - PositionB->Position.y;
 
-            r32 DistanceX = AbsoluteValue(PosDiffX);
-            r32 DistanceY = AbsoluteValue(PosDiffY);
+            r32 DistanceX = AbsoluteValue(DiffX);
+            r32 DistanceY = AbsoluteValue(DiffY);
+
+            r32 SeparationDirX = SignOf(DiffX);
+            r32 SeparationDirY = SignOf(DiffY);
+
+            Assert(DistanceX < BACKBUFFER_WIDTH);
+            Assert(DistanceY < BACKBUFFER_HEIGHT);
+
+            if(DistanceX > 0.5f*BACKBUFFER_WIDTH)
+            {
+                DistanceX = BACKBUFFER_WIDTH - DistanceX;
+                SeparationDirX = -SeparationDirX;
+            }
+            if(DistanceY > 0.5f*BACKBUFFER_HEIGHT)
+            {
+                DistanceY = BACKBUFFER_HEIGHT - DistanceY;
+                SeparationDirY = -SeparationDirY;
+            }
 
             r32 OverlapX = (HitboxA->HalfDim.x + HitboxB->HalfDim.x) - DistanceX;
             r32 OverlapY = (HitboxA->HalfDim.y + HitboxB->HalfDim.y) - DistanceY;
@@ -136,11 +153,11 @@ CollisionDetectionSystem(ecs *ECS)
                 v2 SeparationVector;
                 if(OverlapX < OverlapY)
                 {
-                    SeparationVector = {OverlapX * SignOf(PosDiffX), 0.0f};
+                    SeparationVector = {OverlapX * SeparationDirX, 0.0f};
                 }
                 else
                 {
-                    SeparationVector = {0.0f, OverlapY * SignOf(PosDiffY)};
+                    SeparationVector = {0.0f, OverlapY * SeparationDirY};
                 }
                 AddCollisionEvent(ECS, EntityA, EntityB, SeparationVector);
             }
@@ -325,7 +342,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     SpriteComp->FrameIndex = 0;
                     SpriteComp->Color = Color_White;
                 }
-                else if(Choice == 3 || Choice == 4)
+                else if(Choice == 3 || Choice == 4 || Choice == 5 || Choice == 6)
                 {
                     entity_id EntityID = AddEntity(GameState->ECS);
 
