@@ -123,11 +123,9 @@ struct comp_pool
 {
     s32 Count;
     void *Dense;
-    entity_id *DenseToEntity;
-    s32 *EntityToDense;
+    entity_id DenseToEntity[MAX_ENTITY_COUNT];
+    s32 EntityToDense[MAX_ENTITY_COUNT];
 };
-
-#define MAX_COLLISION_EVENTS_COUNT 128
 
 struct collision_event
 {
@@ -149,21 +147,21 @@ struct grid_cell
 
 struct ecs
 {
-    comp_pool *position_comp_Pool;
-    comp_pool *velocity_comp_Pool;
-    comp_pool *hitbox_comp_Pool;
-    comp_pool *sprite_comp_Pool;
+    comp_pool position_comp_Pool;
+    comp_pool velocity_comp_Pool;
+    comp_pool hitbox_comp_Pool;
+    comp_pool sprite_comp_Pool;
 
     s32 EntityCount;
 
     grid_cell Grid[CELL_COUNT_Y][CELL_COUNT_X];
 
-    collision_event *CollisionEvents;
+    collision_event CollisionEvents[128];
     u32 CollisionEventsCount;
-    b8 *WasPushedThisFrame;
+    b8 WasPushedThisFrame[MAX_ENTITY_COUNT];
 };
 
-#define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool->Dense + Index*sizeof(CompType))
+#define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool.Dense + Index*sizeof(CompType))
 
 struct game_state
 {
@@ -171,7 +169,7 @@ struct game_state
     memory_arena MainArena;
     bitmap_info *BitmapInfos;
     random_series GeneralEntropy;
-    ecs *ECS;
+    ecs ECS;
 };
 
 struct transient_state
