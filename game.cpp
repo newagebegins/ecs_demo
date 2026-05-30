@@ -5,7 +5,7 @@
 internal void
 SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
 {
-    for(s32 SpriteIndex = 0;
+    for(u32 SpriteIndex = 1;
         SpriteIndex < ECS->sprite_comp_Pool.Count;
         ++SpriteIndex)
     {
@@ -20,8 +20,8 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
         }
 
         entity_id EntityID = ECS->sprite_comp_Pool.DenseToEntity[SpriteIndex];
-        s32 PositionIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(PositionIndex >= 0);
+        u32 PositionIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
+        Assert(PositionIndex);
         position_comp *Position = GetComp(ECS, position_comp, PositionIndex);
 
         PushBitmap(RenderGroup, Sprite->BitmapID,
@@ -30,8 +30,8 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
                    Sprite->FrameIndex, false, Sprite->Color);
 
 #if 0
-        s32 HitboxIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(HitboxIndex >= 0);
+        u32 HitboxIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityID.Value];
+        Assert(HitboxIndex);
         hitbox_comp *Hitbox = GetComp(ECS, hitbox_comp, HitboxIndex);
         v2 HitboxMin = Position->Position - Hitbox->HalfDim;
         v2 HitboxMax = Position->Position + Hitbox->HalfDim;
@@ -51,15 +51,15 @@ AddAndWrap(v2 A, v2 B)
 internal void
 MovementSystem(ecs *ECS, r32 dt)
 {
-    for(s32 VelocityCompIndex = 0;
+    for(u32 VelocityCompIndex = 1;
         VelocityCompIndex < ECS->velocity_comp_Pool.Count;
         ++VelocityCompIndex)
     {
         velocity_comp *VelocityComp = GetComp(ECS, velocity_comp, VelocityCompIndex);
 
         entity_id EntityID = ECS->velocity_comp_Pool.DenseToEntity[VelocityCompIndex];
-        s32 PositionCompIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(PositionCompIndex >= 0);
+        u32 PositionCompIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
+        Assert(PositionCompIndex);
         position_comp *PositionComp = GetComp(ECS, position_comp, PositionCompIndex);
         PositionComp->Position = AddAndWrap(PositionComp->Position, VelocityComp->Velocity * dt);
     }
@@ -100,7 +100,7 @@ CollisionDetectionSystem(ecs *ECS)
         }
     }
 
-    for(s32 PositionIndex = 0;
+    for(u32 PositionIndex = 1;
         PositionIndex < ECS->position_comp_Pool.Count;
         ++PositionIndex)
     {
@@ -130,15 +130,15 @@ CollisionDetectionSystem(ecs *ECS)
 
     BEGIN_TIMED_BLOCK(CheckCollision);
 
-    for(s32 HitboxAIndex = 0;
+    for(u32 HitboxAIndex = 1;
         HitboxAIndex < ECS->hitbox_comp_Pool.Count;
         ++HitboxAIndex)
     {
         hitbox_comp *HitboxA = GetComp(ECS, hitbox_comp, HitboxAIndex);
 
         entity_id EntityA = ECS->hitbox_comp_Pool.DenseToEntity[HitboxAIndex];
-        s32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[EntityA.Value];
-        Assert(PositionAIndex >= 0);
+        u32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[EntityA.Value];
+        Assert(PositionAIndex);
         position_comp *PositionA = GetComp(ECS, position_comp, PositionAIndex);
 
         s32 CellX = (s32)(PositionA->Position.x / (r32)CELL_SIZE);
@@ -168,12 +168,12 @@ CollisionDetectionSystem(ecs *ECS)
                     {
                         ++CheckCount;
 
-                        s32 HitboxBIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityB.Value];
-                        Assert(HitboxBIndex >= 0);
+                        u32 HitboxBIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityB.Value];
+                        Assert(HitboxBIndex);
                         hitbox_comp *HitboxB = GetComp(ECS, hitbox_comp, HitboxBIndex);                    
 
-                        s32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[EntityB.Value];
-                        Assert(PositionBIndex >= 0);
+                        u32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[EntityB.Value];
+                        Assert(PositionBIndex);
                         position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
 
                         r32 DiffX = PositionA->Position.x - PositionB->Position.x;
@@ -231,7 +231,12 @@ CollisionDetectionSystem(ecs *ECS)
 internal void
 CollisionResponseSystem(ecs *ECS)
 {
-    ZeroSize(ECS->WasPushedThisFrame, MAX_ENTITY_COUNT*sizeof(ECS->WasPushedThisFrame[0]));
+    for(u32 EntityID = 1;
+        EntityID < ArrayCount(ECS->WasPushedThisFrame);
+        ++EntityID)
+    {
+        ECS->WasPushedThisFrame[EntityID] = false;
+    }
 
     for(u32 EventIndex = 0;
         EventIndex < ECS->CollisionEventsCount;
@@ -239,19 +244,19 @@ CollisionResponseSystem(ecs *ECS)
     {
         collision_event *Event = ECS->CollisionEvents + EventIndex;
 
-        s32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityA.Value];
-        Assert(PositionAIndex >= 0);
+        u32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityA.Value];
+        Assert(PositionAIndex);
         position_comp *PositionA = GetComp(ECS, position_comp, PositionAIndex);
 
-        s32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityB.Value];
-        Assert(PositionBIndex >= 0);
+        u32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityB.Value];
+        Assert(PositionBIndex);
         position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
 
-        s32 VelocityAIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityA.Value];
-        velocity_comp *VelocityA = (VelocityAIndex >= 0) ? GetComp(ECS, velocity_comp, VelocityAIndex) : 0;
+        u32 VelocityAIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityA.Value];
+        velocity_comp *VelocityA = VelocityAIndex ? GetComp(ECS, velocity_comp, VelocityAIndex) : 0;
 
-        s32 VelocityBIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityB.Value];
-        velocity_comp *VelocityB = (VelocityBIndex >= 0) ? GetComp(ECS, velocity_comp, VelocityBIndex) : 0;
+        u32 VelocityBIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityB.Value];
+        velocity_comp *VelocityB = VelocityBIndex ? GetComp(ECS, velocity_comp, VelocityBIndex) : 0;
 
         Assert(VelocityA || VelocityB);
 
@@ -297,15 +302,10 @@ CollisionResponseSystem(ecs *ECS)
 internal void
 InitializeCompPool(memory_arena *Arena, comp_pool *Pool, u32 CompSize)
 {
-    Pool->Dense = PushSize(Arena, MAX_ENTITY_COUNT*CompSize);
+    // NOTE(slava): Reserve space for a null component
+    Pool->Count = 1;
 
-    for(u32 Index = 0;
-        Index < MAX_ENTITY_COUNT;
-        ++Index)
-    {
-        Pool->EntityToDense[Index] = -1;
-        Pool->DenseToEntity[Index].Value = -1;
-    }
+    Pool->Dense = PushSize(Arena, MAX_ENTITY_COUNT*CompSize);
 }
 
 internal entity_id
@@ -321,9 +321,9 @@ AddComponent_(comp_pool *Pool, entity_id EntityID, u32 CompSize)
     Assert(Pool->Count < MAX_ENTITY_COUNT);
     u32 DenseIndex = Pool->Count++;
     void *Component = (u8 *)Pool->Dense + DenseIndex*CompSize;
-    Assert(Pool->DenseToEntity[DenseIndex].Value == -1);
+    Assert(Pool->DenseToEntity[DenseIndex].Value == 0);
     Pool->DenseToEntity[DenseIndex] = EntityID;
-    Assert(Pool->EntityToDense[EntityID.Value] == -1);
+    Assert(Pool->EntityToDense[EntityID.Value] == 0);
     Pool->EntityToDense[EntityID.Value] = DenseIndex;
     return(Component);
 }
@@ -343,6 +343,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->MainArena = MakeArena(GameState + 1, Memory->PermanentStorageSize - sizeof(game_state));
         GameState->BitmapInfos = BitmapInfos;
         GameState->GeneralEntropy = RandomSeries(17);
+
+        // NOTE(slava): Reserve ID for a null entity
+        GameState->ECS.EntityCount = 1;
 
         InitializeCompPool(&GameState->MainArena, &GameState->ECS.position_comp_Pool, sizeof(position_comp));
         InitializeCompPool(&GameState->MainArena, &GameState->ECS.velocity_comp_Pool, sizeof(velocity_comp));

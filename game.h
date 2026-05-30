@@ -92,7 +92,7 @@ ClearArena(memory_arena *Arena)
 
 struct entity_id
 {
-    s32 Value;
+    u32 Value;
 };
 
 struct position_comp
@@ -115,16 +115,16 @@ struct sprite_comp
     bitmap_id BitmapID;
     r32 FrameTimer;
     r32 FrameDuration;
-    s32 FrameIndex;
+    u32 FrameIndex;
     color Color;
 };
 
 struct comp_pool
 {
-    s32 Count;
+    u32 Count;
     void *Dense;
     entity_id DenseToEntity[MAX_ENTITY_COUNT];
-    s32 EntityToDense[MAX_ENTITY_COUNT];
+    u32 EntityToDense[MAX_ENTITY_COUNT];
 };
 
 struct collision_event
@@ -152,7 +152,7 @@ struct ecs
     comp_pool hitbox_comp_Pool;
     comp_pool sprite_comp_Pool;
 
-    s32 EntityCount;
+    u32 EntityCount;
 
     grid_cell Grid[CELL_COUNT_Y][CELL_COUNT_X];
 
