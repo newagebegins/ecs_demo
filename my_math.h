@@ -604,4 +604,13 @@ GetWidth(rectangle2i A)
     return(Result);
 }
 
+inline r32
+AddModN(r32 A, r32 B, r32 N)
+{
+    r32 Result = A + B;
+    Result -= (Result >= N) ? N : 0.0f;
+    Result += (Result < 0.0f) ? N : 0.0f;
+    return(Result);
+}
+
 #endif

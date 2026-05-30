@@ -40,6 +40,14 @@ SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
     }
 }
 
+inline v2
+AddAndWrap(v2 A, v2 B)
+{
+    v2 Result = {AddModN(A.x, B.x, BACKBUFFER_WIDTH),
+                 AddModN(A.y, B.y, BACKBUFFER_HEIGHT)};
+    return(Result);
+}
+
 internal void
 MovementSystem(ecs *ECS, r32 dt)
 {
@@ -53,29 +61,7 @@ MovementSystem(ecs *ECS, r32 dt)
         s32 PositionCompIndex = ECS->position_comp_Pool->EntityToDense[EntityID.Value];
         Assert(PositionCompIndex >= 0);
         position_comp *PositionComp = GetComp(ECS, position_comp, PositionCompIndex);
-
-        v2 P = PositionComp->Position;
-        P += VelocityComp->Velocity * dt;
-
-        if(P.x < 0.0f)
-        {
-            P.x += BACKBUFFER_WIDTH;
-        }
-        else if(P.x >= BACKBUFFER_WIDTH)
-        {
-            P.x -= BACKBUFFER_WIDTH;
-        }
-
-        if(P.y < 0.0f)
-        {
-            P.y += BACKBUFFER_HEIGHT;
-        }
-        else if(P.y >= BACKBUFFER_HEIGHT)
-        {
-            P.y -= BACKBUFFER_HEIGHT;
-        }
-
-        PositionComp->Position = P;
+        PositionComp->Position = AddAndWrap(PositionComp->Position, VelocityComp->Velocity * dt);
     }
 }
 
@@ -215,7 +201,7 @@ CollisionResponseSystem(ecs *ECS)
 
         if(VelocityA && !ECS->WasPushedThisFrame[Event->EntityA.Value])
         {
-            PositionA->Position += SeparationVector;
+            PositionA->Position = AddAndWrap(PositionA->Position, SeparationVector);
             VelocityA->Velocity.x *= VelXScale;
             VelocityA->Velocity.y *= VelYScale;
             ECS->WasPushedThisFrame[Event->EntityA.Value] = true;
@@ -223,7 +209,7 @@ CollisionResponseSystem(ecs *ECS)
 
         if(VelocityB && !ECS->WasPushedThisFrame[Event->EntityB.Value])
         {
-            PositionB->Position -= SeparationVector;
+            PositionB->Position = AddAndWrap(PositionB->Position, -SeparationVector);
             VelocityB->Velocity.x *= VelXScale;
             VelocityB->Velocity.y *= VelYScale;
             ECS->WasPushedThisFrame[Event->EntityB.Value] = true;
