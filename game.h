@@ -127,6 +127,8 @@ struct comp_pool
     s32 *EntityToDense;
 };
 
+#define MAX_COLLISION_EVENTS_COUNT 128
+
 struct collision_event
 {
     entity_id EntityA;
@@ -135,7 +137,15 @@ struct collision_event
     v2 SeparationVector;
 };
 
-#define MAX_COLLISION_EVENTS_COUNT 128
+#define CELL_SIZE 64
+#define CELL_COUNT_X BACKBUFFER_WIDTH/CELL_SIZE
+#define CELL_COUNT_Y BACKBUFFER_HEIGHT/CELL_SIZE
+
+struct grid_cell
+{
+    entity_id Entities[16];
+    u32 EntityCount;
+};
 
 struct ecs
 {
@@ -145,6 +155,8 @@ struct ecs
     comp_pool *sprite_comp_Pool;
 
     s32 EntityCount;
+
+    grid_cell Grid[CELL_COUNT_Y][CELL_COUNT_X];
 
     collision_event *CollisionEvents;
     u32 CollisionEventsCount;

@@ -84,7 +84,49 @@ AddCollisionEvent(ecs *ECS, entity_id EntityA, entity_id EntityB, v2 SeparationV
 internal void
 CollisionDetectionSystem(ecs *ECS)
 {
+    BEGIN_TIMED_BLOCK(CollisionDetectionSystem);
+
+    BEGIN_TIMED_BLOCK(PopulateGrid);
+
+    for(u32 CellY = 0;
+        CellY < CELL_COUNT_Y;
+        ++CellY)
+    {
+        for(u32 CellX = 0;
+            CellX < CELL_COUNT_X;
+            ++CellX)
+        {
+            ECS->Grid[CellY][CellX].EntityCount = 0;
+        }
+    }
+
+    for(s32 PositionIndex = 0;
+        PositionIndex < ECS->position_comp_Pool->Count;
+        ++PositionIndex)
+    {
+        position_comp *Position = GetComp(ECS, position_comp, PositionIndex);
+        entity_id Entity = ECS->position_comp_Pool->DenseToEntity[PositionIndex];
+
+        s32 CellX = (s32)(Position->Position.x / (r32)CELL_SIZE);
+        s32 CellY = (s32)(Position->Position.y / (r32)CELL_SIZE);
+
+        grid_cell *Cell = &ECS->Grid[CellY][CellX];
+        if(Cell->EntityCount < ArrayCount(Cell->Entities))
+        {
+            Cell->Entities[Cell->EntityCount++] = Entity;
+        }
+        else
+        {
+            Assert(!"Too many entities in a grid cell");
+        }
+    }
+
+    END_TIMED_BLOCK(PopulateGrid);
+
+    BEGIN_TIMED_BLOCK(DetectCollisions);
+
     ECS->CollisionEventsCount = 0;
+    u64 CheckCount = 0;
 
     BEGIN_TIMED_BLOCK(CheckCollision);
 
@@ -99,60 +141,91 @@ CollisionDetectionSystem(ecs *ECS)
         Assert(PositionAIndex >= 0);
         position_comp *PositionA = GetComp(ECS, position_comp, PositionAIndex);
 
-        for(s32 HitboxBIndex = HitboxAIndex + 1;
-            HitboxBIndex < ECS->hitbox_comp_Pool->Count;
-            ++HitboxBIndex)
+        s32 CellX = (s32)(PositionA->Position.x / (r32)CELL_SIZE);
+        s32 CellY = (s32)(PositionA->Position.y / (r32)CELL_SIZE);
+
+        for(s32 DeltaY = -1;
+            DeltaY <= 1;
+            ++DeltaY)
         {
-            hitbox_comp *HitboxB = GetComp(ECS, hitbox_comp, HitboxBIndex);
+            s32 TestY = ModuloN(CellY + DeltaY, CELL_COUNT_Y);
 
-            entity_id EntityB = ECS->hitbox_comp_Pool->DenseToEntity[HitboxBIndex];
-            s32 PositionBIndex = ECS->position_comp_Pool->EntityToDense[EntityB.Value];
-            Assert(PositionBIndex >= 0);
-            position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
-
-            r32 DiffX = PositionA->Position.x - PositionB->Position.x;
-            r32 DiffY = PositionA->Position.y - PositionB->Position.y;
-
-            r32 DistanceX = AbsoluteValue(DiffX);
-            r32 DistanceY = AbsoluteValue(DiffY);
-
-            r32 SeparationDirX = SignOf(DiffX);
-            r32 SeparationDirY = SignOf(DiffY);
-
-            Assert(DistanceX < BACKBUFFER_WIDTH);
-            Assert(DistanceY < BACKBUFFER_HEIGHT);
-
-            if(DistanceX > 0.5f*BACKBUFFER_WIDTH)
+            for(s32 DeltaX = -1;
+                DeltaX <= 1;
+                ++DeltaX)
             {
-                DistanceX = BACKBUFFER_WIDTH - DistanceX;
-                SeparationDirX = -SeparationDirX;
-            }
-            if(DistanceY > 0.5f*BACKBUFFER_HEIGHT)
-            {
-                DistanceY = BACKBUFFER_HEIGHT - DistanceY;
-                SeparationDirY = -SeparationDirY;
-            }
+                s32 TestX = ModuloN(CellX + DeltaX, CELL_COUNT_X);
 
-            r32 OverlapX = (HitboxA->HalfDim.x + HitboxB->HalfDim.x) - DistanceX;
-            r32 OverlapY = (HitboxA->HalfDim.y + HitboxB->HalfDim.y) - DistanceY;
+                grid_cell *Cell = &ECS->Grid[TestY][TestX];
 
-            if(OverlapX > 0.0f && OverlapY > 0.0f)
-            {
-                v2 SeparationVector;
-                if(OverlapX < OverlapY)
+                for(u32 EntityIndex = 0;
+                    EntityIndex < Cell->EntityCount;
+                    ++EntityIndex)
                 {
-                    SeparationVector = {OverlapX * SeparationDirX, 0.0f};
+                    entity_id EntityB = Cell->Entities[EntityIndex];
+
+                    if(EntityA.Value < EntityB.Value)
+                    {
+                        ++CheckCount;
+
+                        s32 HitboxBIndex = ECS->hitbox_comp_Pool->EntityToDense[EntityB.Value];
+                        Assert(HitboxBIndex >= 0);
+                        hitbox_comp *HitboxB = GetComp(ECS, hitbox_comp, HitboxBIndex);                    
+
+                        s32 PositionBIndex = ECS->position_comp_Pool->EntityToDense[EntityB.Value];
+                        Assert(PositionBIndex >= 0);
+                        position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
+
+                        r32 DiffX = PositionA->Position.x - PositionB->Position.x;
+                        r32 DiffY = PositionA->Position.y - PositionB->Position.y;
+
+                        r32 DistanceX = AbsoluteValue(DiffX);
+                        r32 DistanceY = AbsoluteValue(DiffY);
+
+                        r32 SeparationDirX = SignOf(DiffX);
+                        r32 SeparationDirY = SignOf(DiffY);
+
+                        Assert(DistanceX < BACKBUFFER_WIDTH);
+                        Assert(DistanceY < BACKBUFFER_HEIGHT);
+
+                        if(DistanceX > 0.5f*BACKBUFFER_WIDTH)
+                        {
+                            DistanceX = BACKBUFFER_WIDTH - DistanceX;
+                            SeparationDirX = -SeparationDirX;
+                        }
+                        if(DistanceY > 0.5f*BACKBUFFER_HEIGHT)
+                        {
+                            DistanceY = BACKBUFFER_HEIGHT - DistanceY;
+                            SeparationDirY = -SeparationDirY;
+                        }
+
+                        r32 OverlapX = (HitboxA->HalfDim.x + HitboxB->HalfDim.x) - DistanceX;
+                        r32 OverlapY = (HitboxA->HalfDim.y + HitboxB->HalfDim.y) - DistanceY;
+
+                        if(OverlapX > 0.0f && OverlapY > 0.0f)
+                        {
+                            v2 SeparationVector;
+                            if(OverlapX < OverlapY)
+                            {
+                                SeparationVector = {OverlapX * SeparationDirX, 0.0f};
+                            }
+                            else
+                            {
+                                SeparationVector = {0.0f, OverlapY * SeparationDirY};
+                            }
+                            AddCollisionEvent(ECS, EntityA, EntityB, SeparationVector);
+                        }
+                    }
                 }
-                else
-                {
-                    SeparationVector = {0.0f, OverlapY * SeparationDirY};
-                }
-                AddCollisionEvent(ECS, EntityA, EntityB, SeparationVector);
             }
         }
     }
 
-    END_TIMED_BLOCK_COUNTED(CheckCollision, ECS->hitbox_comp_Pool->Count*ECS->hitbox_comp_Pool->Count/2);
+    END_TIMED_BLOCK_COUNTED(CheckCollision, CheckCount);
+
+    END_TIMED_BLOCK(DetectCollisions);
+
+    END_TIMED_BLOCK(CollisionDetectionSystem);
 }
 
 internal void

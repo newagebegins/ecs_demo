@@ -87,7 +87,10 @@ ZeroSize(void *Memory, memory_index Size)
 enum perf_counter_id
 {
     PerfCounter_GameUpdateAndRender, // 0
-    PerfCounter_CheckCollision, // 1
+    PerfCounter_CollisionDetectionSystem, // 1
+    PerfCounter_PopulateGrid, // 2
+    PerfCounter_DetectCollisions, // 3
+    PerfCounter_CheckCollision, // 4
 
     PerfCounter_Count,
 };
@@ -99,8 +102,8 @@ struct perf_counter
 };
 
 #define BEGIN_TIMED_BLOCK(Id) u64 BeginCounter_##Id = __rdtsc();
-#define END_TIMED_BLOCK(Id) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles = __rdtsc() - BeginCounter_##Id; ++DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits;
-#define END_TIMED_BLOCK_COUNTED(Id, Count) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles = __rdtsc() - BeginCounter_##Id; DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits += (Count);
+#define END_TIMED_BLOCK(Id) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles += __rdtsc() - BeginCounter_##Id; ++DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits;
+#define END_TIMED_BLOCK_COUNTED(Id, Count) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles += __rdtsc() - BeginCounter_##Id; DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits += (Count);
 #else
 #define BEGIN_TIMED_BLOCK(Id)
 #define END_TIMED_BLOCK(Id)

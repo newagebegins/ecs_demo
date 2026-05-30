@@ -56,14 +56,11 @@ AbsoluteValue(real32 Value)
     return(Result);
 }
 
-inline int32
-ModuloN(int32 Value, int32 N)
+inline s32
+ModuloN(s32 Value, s32 N)
 {
-    int32 Result = Value % N;
-    if(Result < 0)
-    {
-        Result += N;
-    }
+    s32 Result = Value % N;
+    Result = (Result < 0) ? (Result + N) : Result;
     return(Result);
 }
 
