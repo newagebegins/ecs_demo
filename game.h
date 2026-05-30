@@ -88,7 +88,7 @@ ClearArena(memory_arena *Arena)
 
 #include "render_group.h"
 
-#define MAX_ENTITY_COUNT 8192
+#define MAX_ENTITY_COUNT 2048
 
 struct entity_id
 {
@@ -135,7 +135,7 @@ struct collision_event
     v2 SeparationVector;
 };
 
-#define MAX_COLLISION_EVENTS_COUNT 4096
+#define MAX_COLLISION_EVENTS_COUNT 128
 
 struct ecs
 {
@@ -167,5 +167,7 @@ struct transient_state
     b32 IsInitialized;
     memory_arena TranArena;
 };
+
+global_variable game_memory *DebugGameMemory;
 
 #endif

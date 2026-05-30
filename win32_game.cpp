@@ -432,6 +432,28 @@ Win32LoadAtlas()
     return(Atlas);
 }
 
+internal void
+Win32HandlePerfCounters(game_memory *Memory)
+{
+    char Buffer[128];
+    OutputDebugStringA("DEBUG PERFORMANCE COUNTERS:\n");
+    for(u32 CounterId = 0;
+        CounterId < PerfCounter_Count;
+        ++CounterId)
+    {
+        perf_counter *Counter = Memory->PerfCounters + CounterId;
+        if(Counter->Hits)
+        {
+            sprintf_s(Buffer, sizeof(Buffer),
+                      "%u: %I64ucy %I64uh %I64ucy/h\n",
+                      CounterId, Counter->Cycles, Counter->Hits, Counter->Cycles/Counter->Hits);
+            OutputDebugStringA(Buffer);
+            Counter->Cycles = 0;
+            Counter->Hits = 0;
+        }
+    }
+}
+
 int APIENTRY
 WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, char *CommandLine, int ShowCmd)
 {
@@ -719,6 +741,9 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, char *CommandLine, int ShowC
         NewInput->dt = dt;
         Memory.RenderListUsed = 0;
         Game.UpdateAndRender(&Memory, NewInput, Atlas.Infos);
+#if !WASM_BUILD
+        Win32HandlePerfCounters(&Memory);
+#endif
         Win32OutputRenderList(Memory.RenderList, Memory.RenderListUsed, &AtlasBitmap, (game_bitmap *)Backbuffer);
 
         LARGE_INTEGER FrameEndCounter = Win32GetCounter();

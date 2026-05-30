@@ -86,6 +86,8 @@ CollisionDetectionSystem(ecs *ECS)
 {
     ECS->CollisionEventsCount = 0;
 
+    BEGIN_TIMED_BLOCK(CheckCollision);
+
     for(s32 HitboxAIndex = 0;
         HitboxAIndex < ECS->hitbox_comp_Pool->Count;
         ++HitboxAIndex)
@@ -149,6 +151,8 @@ CollisionDetectionSystem(ecs *ECS)
             }
         }
     }
+
+    END_TIMED_BLOCK_COUNTED(CheckCollision, ECS->hitbox_comp_Pool->Count*ECS->hitbox_comp_Pool->Count/2);
 }
 
 internal void
@@ -280,6 +284,10 @@ AddComponent_(comp_pool *Pool, entity_id EntityID, u32 CompSize)
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
+    BEGIN_TIMED_BLOCK(GameUpdateAndRender);
+
+    DebugGameMemory = Memory;
+
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!GameState->IsInitialized)
@@ -363,4 +371,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Memory->RenderListUsed = (u32)RenderArena.Used;
     Memory->RenderListBitmapCount = RenderGroup.BitmapCount;
+
+    END_TIMED_BLOCK(GameUpdateAndRender);
 }

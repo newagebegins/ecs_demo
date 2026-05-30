@@ -81,6 +81,32 @@ ZeroSize(void *Memory, memory_index Size)
 #include "render_list.h"
 #include "atlas.h"
 
+#if !WASM_BUILD
+#include <intrin.h>
+
+enum perf_counter_id
+{
+    PerfCounter_GameUpdateAndRender, // 0
+    PerfCounter_CheckCollision, // 1
+
+    PerfCounter_Count,
+};
+
+struct perf_counter
+{
+    u64 Cycles;
+    u64 Hits;
+};
+
+#define BEGIN_TIMED_BLOCK(Id) u64 BeginCounter_##Id = __rdtsc();
+#define END_TIMED_BLOCK(Id) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles = __rdtsc() - BeginCounter_##Id; ++DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits;
+#define END_TIMED_BLOCK_COUNTED(Id, Count) DebugGameMemory->PerfCounters[PerfCounter_##Id].Cycles = __rdtsc() - BeginCounter_##Id; DebugGameMemory->PerfCounters[PerfCounter_##Id].Hits += (Count);
+#else
+#define BEGIN_TIMED_BLOCK(Id)
+#define END_TIMED_BLOCK(Id)
+#define END_TIMED_BLOCK_COUNTED(Id, Hits)
+#endif
+
 struct game_memory
 {
     void *PermanentStorage;
@@ -90,6 +116,10 @@ struct game_memory
     u32 RenderListSize;
     u32 RenderListUsed;
     u32 RenderListBitmapCount;
+
+#if !WASM_BUILD
+    perf_counter PerfCounters[PerfCounter_Count];
+#endif
 };
 
 struct game_button
