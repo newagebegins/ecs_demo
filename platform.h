@@ -81,7 +81,7 @@ ZeroSize(void *Memory, memory_index Size)
 #include "render_list.h"
 #include "atlas.h"
 
-#if !WASM_BUILD
+#if !WASM_BUILD && GAME_INTERNAL
 #include <intrin.h>
 
 enum perf_counter_id
@@ -120,7 +120,7 @@ struct game_memory
     u32 RenderListUsed;
     u32 RenderListBitmapCount;
 
-#if !WASM_BUILD
+#if !WASM_BUILD && GAME_INTERNAL
     perf_counter PerfCounters[PerfCounter_Count];
 #endif
 };
