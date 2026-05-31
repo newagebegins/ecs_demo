@@ -44,9 +44,14 @@ MovementSystem(ecs *ECS, r32 dt)
         Entity < ECS->EntityCount;
         ++Entity)
     {
-        if(ECS->ComponentMasks[Entity] & ComponentMask_Velocity)
+        if(ECS->ComponentMasks[Entity] & ComponentMask_RigidBody)
         {
-            ECS->Positions[Entity] = AddAndWrap(ECS->Positions[Entity], dt*ECS->Velocities[Entity]);
+            rigid_body *Body = ECS->RigidBodies + Entity;
+
+            Body->Velocity += dt*Body->Acceleration;
+            ECS->Positions[Entity] = AddAndWrap(ECS->Positions[Entity], dt*Body->Velocity);
+
+            Body->Acceleration = {};
         }
     }
 }
@@ -199,60 +204,23 @@ CollisionDetectionSystem(ecs *ECS)
 internal void
 CollisionResponseSystem(ecs *ECS)
 {
-    for(u32 Entity = 0;
-        Entity < ArrayCount(ECS->WasPushedThisFrame);
-        ++Entity)
-    {
-        ECS->WasPushedThisFrame[Entity] = false;
-    }
-
     for(u32 EventIndex = 0;
         EventIndex < ECS->CollisionEventsCount;
         ++EventIndex)
     {
         collision_event *Event = ECS->CollisionEvents + EventIndex;
 
-        b32 AHasVelocity = ECS->ComponentMasks[Event->EntityA] & ComponentMask_Velocity;
-        b32 BHasVelocity = ECS->ComponentMasks[Event->EntityB] & ComponentMask_Velocity;
+        rigid_body *BodyA = ECS->RigidBodies + Event->EntityA;
+        rigid_body *BodyB = ECS->RigidBodies + Event->EntityB;
 
-        Assert(AHasVelocity || BHasVelocity);
+        r32 TotalInvMass = BodyA->InvMass + BodyB->InvMass;
+        Assert(TotalInvMass != 0.0f);
 
-        v2 SeparationVector = Event->SeparationVector;
+        r32 SpringStiffness = 500.0f;
+        v2 SpringForce = Event->SeparationVector * SpringStiffness;
 
-        if(AHasVelocity && BHasVelocity)
-        {
-            SeparationVector *= 0.5f;
-        }
-
-        r32 VelXScale;
-        r32 VelYScale;
-
-        if(SeparationVector.x != 0.0f)
-        {
-            VelXScale = -1.0f;
-            VelYScale = 1.0f;
-        }
-        else
-        {
-            VelXScale = 1.0f;
-            VelYScale = -1.0f;
-        }
-
-        if(AHasVelocity && !ECS->WasPushedThisFrame[Event->EntityA])
-        {
-            ECS->Positions[Event->EntityA] = AddAndWrap(ECS->Positions[Event->EntityA], SeparationVector);
-            ECS->Velocities[Event->EntityA].x *= VelXScale;
-            ECS->Velocities[Event->EntityA].y *= VelYScale;
-            ECS->WasPushedThisFrame[Event->EntityA] = true;
-        }
-
-        if(BHasVelocity && !ECS->WasPushedThisFrame[Event->EntityB])
-        {
-            ECS->Positions[Event->EntityB] = AddAndWrap(ECS->Positions[Event->EntityB], -SeparationVector);
-            ECS->Velocities[Event->EntityB].x *= VelXScale;
-            ECS->Velocities[Event->EntityB].y *= VelYScale;
-            ECS->WasPushedThisFrame[Event->EntityB] = true;
-        }
+        BodyA->Acceleration += SpringForce * (BodyA->InvMass / TotalInvMass);
+        BodyB->Acceleration -= SpringForce * (BodyB->InvMass / TotalInvMass);
     }
 }
 
@@ -296,14 +264,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     u32 Entity = ECS->EntityCount++;
 
                     ECS->ComponentMasks[Entity] = (ComponentMask_Position|
-                                                   ComponentMask_Velocity|
+                                                   ComponentMask_RigidBody|
                                                    ComponentMask_HalfDim|
                                                    ComponentMask_Sprite);
 
                     ECS->Positions[Entity] = V2(X, Y);
-                    ECS->Velocities[Entity] =
+                    ECS->RigidBodies[Entity].Velocity =
                         20.0f*Normalize(V2(RandomBilateral(&GameState->GeneralEntropy),
                                            RandomBilateral(&GameState->GeneralEntropy)));
+                    ECS->RigidBodies[Entity].InvMass = 1.0f;
 
                     ECS->HalfDims[Entity] = V2(5.0f, 6.0f);
 

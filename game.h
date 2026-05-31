@@ -120,9 +120,16 @@ struct grid_cell
 enum component_masks
 {
     ComponentMask_Position = (1 << 0),
-    ComponentMask_Velocity = (1 << 1),
+    ComponentMask_RigidBody = (1 << 1),
     ComponentMask_HalfDim = (1 << 2),
     ComponentMask_Sprite = (1 << 3),
+};
+
+struct rigid_body
+{
+    v2 Velocity;
+    v2 Acceleration;
+    r32 InvMass;
 };
 
 struct ecs
@@ -130,7 +137,7 @@ struct ecs
     u32 ComponentMasks[MAX_ENTITY_COUNT];
 
     v2 Positions[MAX_ENTITY_COUNT];
-    v2 Velocities[MAX_ENTITY_COUNT];
+    rigid_body RigidBodies[MAX_ENTITY_COUNT];
     v2 HalfDims[MAX_ENTITY_COUNT];
     sprite Sprites[MAX_ENTITY_COUNT];
 
@@ -138,9 +145,8 @@ struct ecs
 
     grid_cell Grid[CELL_COUNT_Y][CELL_COUNT_X];
 
-    collision_event CollisionEvents[128];
+    collision_event CollisionEvents[MAX_ENTITY_COUNT/4];
     u32 CollisionEventsCount;
-    b8 WasPushedThisFrame[MAX_ENTITY_COUNT];
 };
 
 struct game_state
