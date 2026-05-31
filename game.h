@@ -90,27 +90,7 @@ ClearArena(memory_arena *Arena)
 
 #define MAX_ENTITY_COUNT 2048
 
-struct entity_id
-{
-    u32 Value;
-};
-
-struct position_comp
-{
-    v2 Position;
-};
-
-struct velocity_comp
-{
-    v2 Velocity;
-};
-
-struct hitbox_comp
-{
-    v2 HalfDim;
-};
-
-struct sprite_comp
+struct sprite
 {
     bitmap_id BitmapID;
     r32 FrameTimer;
@@ -119,18 +99,10 @@ struct sprite_comp
     color Color;
 };
 
-struct comp_pool
-{
-    u32 Count;
-    void *Dense;
-    entity_id DenseToEntity[MAX_ENTITY_COUNT];
-    u32 EntityToDense[MAX_ENTITY_COUNT];
-};
-
 struct collision_event
 {
-    entity_id EntityA;
-    entity_id EntityB;
+    u32 EntityA;
+    u32 EntityB;
     // NOTE(slava): Points to A
     v2 SeparationVector;
 };
@@ -141,16 +113,26 @@ struct collision_event
 
 struct grid_cell
 {
-    entity_id Entities[16];
+    u32 Entities[16];
     u32 EntityCount;
+};
+
+enum component_masks
+{
+    ComponentMask_Position = (1 << 0),
+    ComponentMask_Velocity = (1 << 1),
+    ComponentMask_HalfDim = (1 << 2),
+    ComponentMask_Sprite = (1 << 3),
 };
 
 struct ecs
 {
-    comp_pool position_comp_Pool;
-    comp_pool velocity_comp_Pool;
-    comp_pool hitbox_comp_Pool;
-    comp_pool sprite_comp_Pool;
+    u32 ComponentMasks[MAX_ENTITY_COUNT];
+
+    v2 Positions[MAX_ENTITY_COUNT];
+    v2 Velocities[MAX_ENTITY_COUNT];
+    v2 HalfDims[MAX_ENTITY_COUNT];
+    sprite Sprites[MAX_ENTITY_COUNT];
 
     u32 EntityCount;
 
@@ -160,8 +142,6 @@ struct ecs
     u32 CollisionEventsCount;
     b8 WasPushedThisFrame[MAX_ENTITY_COUNT];
 };
-
-#define GetComp(ECS, CompType, Index) (CompType *)((u8 *)ECS->CompType##_Pool.Dense + Index*sizeof(CompType))
 
 struct game_state
 {

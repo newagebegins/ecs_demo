@@ -5,38 +5,27 @@
 internal void
 SpriteSystem(ecs *ECS, render_group *RenderGroup, r32 dt)
 {
-    for(u32 SpriteIndex = 1;
-        SpriteIndex < ECS->sprite_comp_Pool.Count;
-        ++SpriteIndex)
+    for(u32 Entity = 0;
+        Entity < ECS->EntityCount;
+        ++Entity)
     {
-        sprite_comp *Sprite = GetComp(ECS, sprite_comp, SpriteIndex);
-        bitmap_info *Info = RenderGroup->BitmapInfos + Sprite->BitmapID;
-
-        Sprite->FrameTimer += dt;
-        if(Sprite->FrameTimer >= Sprite->FrameDuration)
+        if(ECS->ComponentMasks[Entity] & ComponentMask_Sprite)
         {
-            Sprite->FrameTimer -= Sprite->FrameDuration;
-            Sprite->FrameIndex = (Sprite->FrameIndex + 1) % Info->FrameCount;
+            sprite *Sprite = ECS->Sprites + Entity;
+            bitmap_info *Info = RenderGroup->BitmapInfos + Sprite->BitmapID;
+
+            Sprite->FrameTimer += dt;
+            if(Sprite->FrameTimer >= Sprite->FrameDuration)
+            {
+                Sprite->FrameTimer -= Sprite->FrameDuration;
+                Sprite->FrameIndex = (Sprite->FrameIndex + 1) % Info->FrameCount;
+            }
+
+            PushBitmap(RenderGroup, Sprite->BitmapID,
+                       (s32)(ECS->Positions[Entity].x - (r32)Info->FrameWidth*0.5f),
+                       (s32)(ECS->Positions[Entity].y - (r32)Info->FrameHeight*0.5f),
+                       Sprite->FrameIndex, false, Sprite->Color);
         }
-
-        entity_id EntityID = ECS->sprite_comp_Pool.DenseToEntity[SpriteIndex];
-        u32 PositionIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(PositionIndex);
-        position_comp *Position = GetComp(ECS, position_comp, PositionIndex);
-
-        PushBitmap(RenderGroup, Sprite->BitmapID,
-                   (s32)(Position->Position.x - (r32)Info->FrameWidth*0.5f),
-                   (s32)(Position->Position.y - (r32)Info->FrameHeight*0.5f),
-                   Sprite->FrameIndex, false, Sprite->Color);
-
-#if 0
-        u32 HitboxIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(HitboxIndex);
-        hitbox_comp *Hitbox = GetComp(ECS, hitbox_comp, HitboxIndex);
-        v2 HitboxMin = Position->Position - Hitbox->HalfDim;
-        v2 HitboxMax = Position->Position + Hitbox->HalfDim;
-        PushRect(RenderGroup, (s32)HitboxMin.x, (s32)HitboxMin.y, (s32)HitboxMax.x, (s32)HitboxMax.y, Color_Cyan);
-#endif
     }
 }
 
@@ -51,22 +40,19 @@ AddAndWrap(v2 A, v2 B)
 internal void
 MovementSystem(ecs *ECS, r32 dt)
 {
-    for(u32 VelocityCompIndex = 1;
-        VelocityCompIndex < ECS->velocity_comp_Pool.Count;
-        ++VelocityCompIndex)
+    for(u32 Entity = 0;
+        Entity < ECS->EntityCount;
+        ++Entity)
     {
-        velocity_comp *VelocityComp = GetComp(ECS, velocity_comp, VelocityCompIndex);
-
-        entity_id EntityID = ECS->velocity_comp_Pool.DenseToEntity[VelocityCompIndex];
-        u32 PositionCompIndex = ECS->position_comp_Pool.EntityToDense[EntityID.Value];
-        Assert(PositionCompIndex);
-        position_comp *PositionComp = GetComp(ECS, position_comp, PositionCompIndex);
-        PositionComp->Position = AddAndWrap(PositionComp->Position, VelocityComp->Velocity * dt);
+        if(ECS->ComponentMasks[Entity] & ComponentMask_Velocity)
+        {
+            ECS->Positions[Entity] = AddAndWrap(ECS->Positions[Entity], dt*ECS->Velocities[Entity]);
+        }
     }
 }
 
 internal void
-AddCollisionEvent(ecs *ECS, entity_id EntityA, entity_id EntityB, v2 SeparationVector)
+AddCollisionEvent(ecs *ECS, u32 EntityA, u32 EntityB, v2 SeparationVector)
 {
     if(ECS->CollisionEventsCount < ArrayCount(ECS->CollisionEvents))
     {
@@ -100,15 +86,12 @@ CollisionDetectionSystem(ecs *ECS)
         }
     }
 
-    for(u32 PositionIndex = 1;
-        PositionIndex < ECS->position_comp_Pool.Count;
-        ++PositionIndex)
+    for(u32 Entity = 0;
+        Entity < ECS->EntityCount;
+        ++Entity)
     {
-        position_comp *Position = GetComp(ECS, position_comp, PositionIndex);
-        entity_id Entity = ECS->position_comp_Pool.DenseToEntity[PositionIndex];
-
-        s32 CellX = (s32)(Position->Position.x / (r32)CELL_SIZE);
-        s32 CellY = (s32)(Position->Position.y / (r32)CELL_SIZE);
+        s32 CellX = (s32)(ECS->Positions[Entity].x / (r32)CELL_SIZE);
+        s32 CellY = (s32)(ECS->Positions[Entity].y / (r32)CELL_SIZE);
 
         grid_cell *Cell = &ECS->Grid[CellY][CellX];
         if(Cell->EntityCount < ArrayCount(Cell->Entities))
@@ -130,19 +113,12 @@ CollisionDetectionSystem(ecs *ECS)
 
     BEGIN_TIMED_BLOCK(CheckCollision);
 
-    for(u32 HitboxAIndex = 1;
-        HitboxAIndex < ECS->hitbox_comp_Pool.Count;
-        ++HitboxAIndex)
+    for(u32 EntityA = 0;
+        EntityA < ECS->EntityCount;
+        ++EntityA)
     {
-        hitbox_comp *HitboxA = GetComp(ECS, hitbox_comp, HitboxAIndex);
-
-        entity_id EntityA = ECS->hitbox_comp_Pool.DenseToEntity[HitboxAIndex];
-        u32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[EntityA.Value];
-        Assert(PositionAIndex);
-        position_comp *PositionA = GetComp(ECS, position_comp, PositionAIndex);
-
-        s32 CellX = (s32)(PositionA->Position.x / (r32)CELL_SIZE);
-        s32 CellY = (s32)(PositionA->Position.y / (r32)CELL_SIZE);
+        s32 CellX = (s32)(ECS->Positions[EntityA].x / (r32)CELL_SIZE);
+        s32 CellY = (s32)(ECS->Positions[EntityA].y / (r32)CELL_SIZE);
 
         for(s32 DeltaY = -1;
             DeltaY <= 1;
@@ -158,26 +134,18 @@ CollisionDetectionSystem(ecs *ECS)
 
                 grid_cell *Cell = &ECS->Grid[TestY][TestX];
 
-                for(u32 EntityIndex = 0;
-                    EntityIndex < Cell->EntityCount;
-                    ++EntityIndex)
+                for(u32 CellEntityIndex = 0;
+                    CellEntityIndex < Cell->EntityCount;
+                    ++CellEntityIndex)
                 {
-                    entity_id EntityB = Cell->Entities[EntityIndex];
+                    u32 EntityB = Cell->Entities[CellEntityIndex];
 
-                    if(EntityA.Value < EntityB.Value)
+                    if(EntityA < EntityB)
                     {
                         ++CheckCount;
 
-                        u32 HitboxBIndex = ECS->hitbox_comp_Pool.EntityToDense[EntityB.Value];
-                        Assert(HitboxBIndex);
-                        hitbox_comp *HitboxB = GetComp(ECS, hitbox_comp, HitboxBIndex);                    
-
-                        u32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[EntityB.Value];
-                        Assert(PositionBIndex);
-                        position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
-
-                        r32 DiffX = PositionA->Position.x - PositionB->Position.x;
-                        r32 DiffY = PositionA->Position.y - PositionB->Position.y;
+                        r32 DiffX = ECS->Positions[EntityA].x - ECS->Positions[EntityB].x;
+                        r32 DiffY = ECS->Positions[EntityA].y - ECS->Positions[EntityB].y;
 
                         r32 DistanceX = AbsoluteValue(DiffX);
                         r32 DistanceY = AbsoluteValue(DiffY);
@@ -199,8 +167,8 @@ CollisionDetectionSystem(ecs *ECS)
                             SeparationDirY = -SeparationDirY;
                         }
 
-                        r32 OverlapX = (HitboxA->HalfDim.x + HitboxB->HalfDim.x) - DistanceX;
-                        r32 OverlapY = (HitboxA->HalfDim.y + HitboxB->HalfDim.y) - DistanceY;
+                        r32 OverlapX = (ECS->HalfDims[EntityA].x + ECS->HalfDims[EntityB].x) - DistanceX;
+                        r32 OverlapY = (ECS->HalfDims[EntityA].y + ECS->HalfDims[EntityB].y) - DistanceY;
 
                         if(OverlapX > 0.0f && OverlapY > 0.0f)
                         {
@@ -231,11 +199,11 @@ CollisionDetectionSystem(ecs *ECS)
 internal void
 CollisionResponseSystem(ecs *ECS)
 {
-    for(u32 EntityID = 1;
-        EntityID < ArrayCount(ECS->WasPushedThisFrame);
-        ++EntityID)
+    for(u32 Entity = 0;
+        Entity < ArrayCount(ECS->WasPushedThisFrame);
+        ++Entity)
     {
-        ECS->WasPushedThisFrame[EntityID] = false;
+        ECS->WasPushedThisFrame[Entity] = false;
     }
 
     for(u32 EventIndex = 0;
@@ -244,25 +212,14 @@ CollisionResponseSystem(ecs *ECS)
     {
         collision_event *Event = ECS->CollisionEvents + EventIndex;
 
-        u32 PositionAIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityA.Value];
-        Assert(PositionAIndex);
-        position_comp *PositionA = GetComp(ECS, position_comp, PositionAIndex);
+        b32 AHasVelocity = ECS->ComponentMasks[Event->EntityA] & ComponentMask_Velocity;
+        b32 BHasVelocity = ECS->ComponentMasks[Event->EntityB] & ComponentMask_Velocity;
 
-        u32 PositionBIndex = ECS->position_comp_Pool.EntityToDense[Event->EntityB.Value];
-        Assert(PositionBIndex);
-        position_comp *PositionB = GetComp(ECS, position_comp, PositionBIndex);
-
-        u32 VelocityAIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityA.Value];
-        velocity_comp *VelocityA = VelocityAIndex ? GetComp(ECS, velocity_comp, VelocityAIndex) : 0;
-
-        u32 VelocityBIndex = ECS->velocity_comp_Pool.EntityToDense[Event->EntityB.Value];
-        velocity_comp *VelocityB = VelocityBIndex ? GetComp(ECS, velocity_comp, VelocityBIndex) : 0;
-
-        Assert(VelocityA || VelocityB);
+        Assert(AHasVelocity || BHasVelocity);
 
         v2 SeparationVector = Event->SeparationVector;
 
-        if(VelocityA && VelocityB)
+        if(AHasVelocity && BHasVelocity)
         {
             SeparationVector *= 0.5f;
         }
@@ -281,54 +238,23 @@ CollisionResponseSystem(ecs *ECS)
             VelYScale = -1.0f;
         }
 
-        if(VelocityA && !ECS->WasPushedThisFrame[Event->EntityA.Value])
+        if(AHasVelocity && !ECS->WasPushedThisFrame[Event->EntityA])
         {
-            PositionA->Position = AddAndWrap(PositionA->Position, SeparationVector);
-            VelocityA->Velocity.x *= VelXScale;
-            VelocityA->Velocity.y *= VelYScale;
-            ECS->WasPushedThisFrame[Event->EntityA.Value] = true;
+            ECS->Positions[Event->EntityA] = AddAndWrap(ECS->Positions[Event->EntityA], SeparationVector);
+            ECS->Velocities[Event->EntityA].x *= VelXScale;
+            ECS->Velocities[Event->EntityA].y *= VelYScale;
+            ECS->WasPushedThisFrame[Event->EntityA] = true;
         }
 
-        if(VelocityB && !ECS->WasPushedThisFrame[Event->EntityB.Value])
+        if(BHasVelocity && !ECS->WasPushedThisFrame[Event->EntityB])
         {
-            PositionB->Position = AddAndWrap(PositionB->Position, -SeparationVector);
-            VelocityB->Velocity.x *= VelXScale;
-            VelocityB->Velocity.y *= VelYScale;
-            ECS->WasPushedThisFrame[Event->EntityB.Value] = true;
+            ECS->Positions[Event->EntityB] = AddAndWrap(ECS->Positions[Event->EntityB], -SeparationVector);
+            ECS->Velocities[Event->EntityB].x *= VelXScale;
+            ECS->Velocities[Event->EntityB].y *= VelYScale;
+            ECS->WasPushedThisFrame[Event->EntityB] = true;
         }
     }
 }
-
-internal void
-InitializeCompPool(memory_arena *Arena, comp_pool *Pool, u32 CompSize)
-{
-    // NOTE(slava): Reserve space for a null component
-    Pool->Count = 1;
-
-    Pool->Dense = PushSize(Arena, MAX_ENTITY_COUNT*CompSize);
-}
-
-internal entity_id
-AddEntity(ecs *ECS)
-{
-    entity_id Result = {ECS->EntityCount++};
-    return(Result);
-}
-
-internal void *
-AddComponent_(comp_pool *Pool, entity_id EntityID, u32 CompSize)
-{
-    Assert(Pool->Count < MAX_ENTITY_COUNT);
-    u32 DenseIndex = Pool->Count++;
-    void *Component = (u8 *)Pool->Dense + DenseIndex*CompSize;
-    Assert(Pool->DenseToEntity[DenseIndex].Value == 0);
-    Pool->DenseToEntity[DenseIndex] = EntityID;
-    Assert(Pool->EntityToDense[EntityID.Value] == 0);
-    Pool->EntityToDense[EntityID.Value] = DenseIndex;
-    return(Component);
-}
-
-#define AddComponent(ECS, EntityID, CompType) (CompType *)AddComponent_(&ECS.CompType##_Pool, EntityID, sizeof(CompType))
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -338,24 +264,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
     game_state *GameState = (game_state *)Memory->PermanentStorage;
+
+    ecs *ECS = &GameState->ECS;
+
     if(!GameState->IsInitialized)
     {
         GameState->MainArena = MakeArena(GameState + 1, Memory->PermanentStorageSize - sizeof(game_state));
         GameState->BitmapInfos = BitmapInfos;
         GameState->GeneralEntropy = RandomSeries(17);
 
-        // NOTE(slava): Reserve ID for a null entity
-        GameState->ECS.EntityCount = 1;
-
-        InitializeCompPool(&GameState->MainArena, &GameState->ECS.position_comp_Pool, sizeof(position_comp));
-        InitializeCompPool(&GameState->MainArena, &GameState->ECS.velocity_comp_Pool, sizeof(velocity_comp));
-        InitializeCompPool(&GameState->MainArena, &GameState->ECS.hitbox_comp_Pool, sizeof(hitbox_comp));
-        InitializeCompPool(&GameState->MainArena, &GameState->ECS.sprite_comp_Pool, sizeof(sprite_comp));
-
         u32 CellSize = 16;
         r32 CellHalfDim = (r32)(CellSize/2);
         u32 CellCountX = BACKBUFFER_WIDTH/CellSize;
         u32 CellCountY = BACKBUFFER_HEIGHT/CellSize;
+
 
         for(u32 CellY = 0;
             CellY < CellCountY;
@@ -371,42 +293,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 u32 Choice = RandomChoice(&GameState->GeneralEntropy, 16);
                 if(Choice == 1 || Choice == 2)
                 {
-                    entity_id EntityID = AddEntity(&GameState->ECS);
+                    u32 Entity = ECS->EntityCount++;
 
-                    position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
-                    PositionComp->Position = V2(X, Y);
+                    ECS->ComponentMasks[Entity] = (ComponentMask_Position|
+                                                   ComponentMask_Velocity|
+                                                   ComponentMask_HalfDim|
+                                                   ComponentMask_Sprite);
 
-                    velocity_comp *VelocityComp = AddComponent(GameState->ECS, EntityID, velocity_comp);
-                    VelocityComp->Velocity =
+                    ECS->Positions[Entity] = V2(X, Y);
+                    ECS->Velocities[Entity] =
                         20.0f*Normalize(V2(RandomBilateral(&GameState->GeneralEntropy),
                                            RandomBilateral(&GameState->GeneralEntropy)));
 
-                    hitbox_comp *HitboxComp = AddComponent(GameState->ECS, EntityID, hitbox_comp);
-                    HitboxComp->HalfDim = V2(5.0f, 6.0f);
+                    ECS->HalfDims[Entity] = V2(5.0f, 6.0f);
 
-                    sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
-                    SpriteComp->BitmapID = Bitmap_Guy;
-                    SpriteComp->FrameTimer = 0.0f;
-                    SpriteComp->FrameDuration = 0.2f;
-                    SpriteComp->FrameIndex = 0;
-                    SpriteComp->Color = Color_White;
+                    sprite *Sprite = ECS->Sprites + Entity;
+                    Sprite->BitmapID = Bitmap_Guy;
+                    Sprite->FrameTimer = 0.0f;
+                    Sprite->FrameDuration = 0.2f;
+                    Sprite->FrameIndex = 0;
+                    Sprite->Color = Color_White;
                 }
                 else if(Choice == 3 || Choice == 4 || Choice == 5 || Choice == 6)
                 {
-                    entity_id EntityID = AddEntity(&GameState->ECS);
+                    u32 Entity = ECS->EntityCount++;
 
-                    position_comp *PositionComp = AddComponent(GameState->ECS, EntityID, position_comp);
-                    PositionComp->Position = V2(X, Y);
+                    ECS->ComponentMasks[Entity] = (ComponentMask_Position|
+                                                   ComponentMask_HalfDim|
+                                                   ComponentMask_Sprite);
 
-                    hitbox_comp *HitboxComp = AddComponent(GameState->ECS, EntityID, hitbox_comp);
-                    HitboxComp->HalfDim = V2(8.0f, 8.0f);
+                    ECS->Positions[Entity] = V2(X, Y);
+                    ECS->HalfDims[Entity] = V2(8.0f, 8.0f);
 
-                    sprite_comp *SpriteComp = AddComponent(GameState->ECS, EntityID, sprite_comp);
-                    SpriteComp->BitmapID = Bitmap_Wall;
-                    SpriteComp->FrameTimer = 0.0f;
-                    SpriteComp->FrameDuration = 0.0f;
-                    SpriteComp->FrameIndex = 0;
-                    SpriteComp->Color = Color_Cyan;
+                    sprite *Sprite = ECS->Sprites + Entity;
+                    Sprite->BitmapID = Bitmap_Wall;
+                    Sprite->FrameTimer = 0.0f;
+                    Sprite->FrameDuration = 0.0f;
+                    Sprite->FrameIndex = 0;
+                    Sprite->Color = Color_Cyan;
                 }
             }
         }
@@ -419,10 +343,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializeRenderGroup(&RenderGroup, &RenderArena, GameState->BitmapInfos);
     PushClear(&RenderGroup, Color_Black);
 
-    MovementSystem(&GameState->ECS, Input->dt);
-    CollisionDetectionSystem(&GameState->ECS);
-    CollisionResponseSystem(&GameState->ECS);
-    SpriteSystem(&GameState->ECS, &RenderGroup, Input->dt);
+    MovementSystem(ECS, Input->dt);
+    CollisionDetectionSystem(ECS);
+    CollisionResponseSystem(ECS);
+    SpriteSystem(ECS, &RenderGroup, Input->dt);
 
     Memory->RenderListUsed = (u32)RenderArena.Used;
     Memory->RenderListBitmapCount = RenderGroup.BitmapCount;
