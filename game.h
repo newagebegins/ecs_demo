@@ -134,6 +134,13 @@ struct rigid_body
     r32 FrictionCoeff;
 };
 
+struct overlap
+{
+    u32 EntityA;
+    u32 EntityB;
+    b32 Ended;
+};
+
 struct ecs
 {
     u32 ComponentMasks[MAX_ENTITY_COUNT];
@@ -149,6 +156,9 @@ struct ecs
 
     collision_event CollisionEvents[MAX_ENTITY_COUNT/4];
     u32 CollisionEventsCount;
+
+    overlap IgnoredOverlaps[32];
+    u32 IgnoredOverlapsCount;
 
     random_series *RandomSeries;
 };

@@ -212,23 +212,68 @@ CollisionDetectionSystem(ecs *ECS)
 internal void
 CollisionResponseSystem(ecs *ECS)
 {
+    for(u32 OverlapIndex = 0;
+        OverlapIndex < ECS->IgnoredOverlapsCount;
+        ++OverlapIndex)
+    {
+        overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+        Overlap->Ended = true;
+    }
+
     for(u32 EventIndex = 0;
         EventIndex < ECS->CollisionEventsCount;
         ++EventIndex)
     {
         collision_event *Event = ECS->CollisionEvents + EventIndex;
 
-        rigid_body *BodyA = ECS->RigidBodies + Event->EntityA;
-        rigid_body *BodyB = ECS->RigidBodies + Event->EntityB;
+        b32 Ignored = false;
 
-        r32 TotalInvMass = BodyA->InvMass + BodyB->InvMass;
-        Assert(TotalInvMass != 0.0f);
+        for(u32 OverlapIndex = 0;
+            OverlapIndex < ECS->IgnoredOverlapsCount;
+            ++OverlapIndex)
+        {
+            overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+            if((Overlap->EntityA == Event->EntityA) &&
+               (Overlap->EntityB == Event->EntityB))
+            {
+                Ignored = true;
+                Overlap->Ended = false;
+                break;
+            }
+        }
 
-        r32 SpringStiffness = 500.0f;
-        v2 SpringForce = Event->SeparationVector * SpringStiffness;
+        if(!Ignored)
+        {
+            rigid_body *BodyA = ECS->RigidBodies + Event->EntityA;
+            rigid_body *BodyB = ECS->RigidBodies + Event->EntityB;
 
-        BodyA->Acceleration += SpringForce * (BodyA->InvMass / TotalInvMass);
-        BodyB->Acceleration -= SpringForce * (BodyB->InvMass / TotalInvMass);
+            r32 TotalInvMass = BodyA->InvMass + BodyB->InvMass;
+            Assert(TotalInvMass != 0.0f);
+
+            r32 SpringStiffness = 500.0f;
+            v2 SpringForce = Event->SeparationVector * SpringStiffness;
+
+            BodyA->Acceleration += SpringForce * (BodyA->InvMass / TotalInvMass);
+            BodyB->Acceleration -= SpringForce * (BodyB->InvMass / TotalInvMass);
+        }
+    }
+
+    for(u32 OverlapIndex = 0;
+        OverlapIndex < ECS->IgnoredOverlapsCount;
+        )
+    {
+        overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+
+        if(Overlap->Ended)
+        {
+            overlap *LastOverlap = ECS->IgnoredOverlaps + ECS->IgnoredOverlapsCount - 1;
+            *Overlap = *LastOverlap;
+            --ECS->IgnoredOverlapsCount;
+        }
+        else
+        {
+            ++OverlapIndex;
+        }
     }
 }
 
@@ -267,9 +312,9 @@ BomberSystem(ecs *ECS, r32 dt)
                                                ComponentMask_Sprite);
 
                 ECS->Positions[BombID] = ECS->Positions[Entity];
-                ECS->RigidBodies[BombID].Velocity = 10.0f*RandomDirection(ECS->RandomSeries);
+                ECS->RigidBodies[BombID].Velocity = 7.0f*PIXELS_PER_METER*RandomDirection(ECS->RandomSeries);
                 ECS->RigidBodies[BombID].InvMass = 1.0f / 10.0f;
-                ECS->RigidBodies[BombID].FrictionCoeff = 0.8f;
+                ECS->RigidBodies[BombID].FrictionCoeff = 0.5f;
 
                 ECS->HalfDims[BombID] = V2(6.0f, 6.0f);
 
@@ -279,6 +324,17 @@ BomberSystem(ecs *ECS, r32 dt)
                 Sprite->FrameDuration = 0.0f;
                 Sprite->FrameIndex = 0;
                 Sprite->Color = Color_Red;
+
+                if(ECS->IgnoredOverlapsCount < ArrayCount(ECS->IgnoredOverlaps))
+                {
+                    u32 EntityA = Minimum(Entity, BombID);
+                    u32 EntityB = Maximum(Entity, BombID);
+                    ECS->IgnoredOverlaps[ECS->IgnoredOverlapsCount++] = {EntityA, EntityB};
+                }
+                else
+                {
+                    Assert(!"Out of memory");
+                }
             }
         }
     }
