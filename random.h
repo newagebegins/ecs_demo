@@ -62,4 +62,19 @@ RandomBetween(random_series *Series, real32 Min, real32 Max)
     return(Result);
 }
 
+inline v2
+RandomDirection(random_series *Series)
+{
+    v2 Result;
+
+    do
+    {
+        Result.x = RandomBilateral(Series);
+        Result.y = RandomBilateral(Series);
+    } while ((Result.x == 0.0f) && (Result.y == 0.0f));
+
+    Result = Normalize(Result);
+    return(Result);
+}
+
 #endif

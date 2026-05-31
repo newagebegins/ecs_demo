@@ -113,7 +113,7 @@ struct collision_event
 
 struct grid_cell
 {
-    u32 Entities[16];
+    u32 Entities[32];
     u32 EntityCount;
 };
 
@@ -123,6 +123,7 @@ enum component_masks
     ComponentMask_RigidBody = (1 << 1),
     ComponentMask_HalfDim = (1 << 2),
     ComponentMask_Sprite = (1 << 3),
+    ComponentMask_Bomber = (1 << 4),
 };
 
 struct rigid_body
@@ -130,6 +131,7 @@ struct rigid_body
     v2 Velocity;
     v2 Acceleration;
     r32 InvMass;
+    r32 FrictionCoeff;
 };
 
 struct ecs
@@ -147,6 +149,8 @@ struct ecs
 
     collision_event CollisionEvents[MAX_ENTITY_COUNT/4];
     u32 CollisionEventsCount;
+
+    random_series *RandomSeries;
 };
 
 struct game_state

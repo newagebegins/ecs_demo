@@ -37,6 +37,11 @@ AddAndWrap(v2 A, v2 B)
     return(Result);
 }
 
+#define PIXELS_PER_METER (16.0f / 1.5f)
+#define METERS_PER_PIXEL (1.0f / PIXELS_PER_METER)
+#define GRAVITY_METRIC 9.8f
+#define GRAVITY_PIXEL (GRAVITY_METRIC * PIXELS_PER_METER)
+
 internal void
 MovementSystem(ecs *ECS, r32 dt)
 {
@@ -47,6 +52,9 @@ MovementSystem(ecs *ECS, r32 dt)
         if(ECS->ComponentMasks[Entity] & ComponentMask_RigidBody)
         {
             rigid_body *Body = ECS->RigidBodies + Entity;
+
+            v2 Friction = -Normalize(Body->Velocity) * Body->FrictionCoeff * GRAVITY_PIXEL;
+            Body->Acceleration += Friction;
 
             Body->Velocity += dt*Body->Acceleration;
             ECS->Positions[Entity] = AddAndWrap(ECS->Positions[Entity], dt*Body->Velocity);
@@ -224,6 +232,58 @@ CollisionResponseSystem(ecs *ECS)
     }
 }
 
+inline u32
+AddEntity(ecs *ECS)
+{
+    u32 ID;
+    if(ECS->EntityCount < MAX_ENTITY_COUNT)
+    {
+        ID = ECS->EntityCount++;
+    }
+    else
+    {
+        ID = 0;
+        Assert(!"No room for a new entity");
+    }
+    return(ID);
+}
+
+internal void
+BomberSystem(ecs *ECS, r32 dt)
+{
+    for(u32 Entity = 0;
+        Entity < ECS->EntityCount;
+        ++Entity)
+    {
+        if(ECS->ComponentMasks[Entity] & ComponentMask_Bomber)
+        {
+            if(RandomChoice(ECS->RandomSeries, 2000) == 7)
+            {
+                u32 BombID = AddEntity(ECS);
+
+                ECS->ComponentMasks[BombID] = (ComponentMask_Position|
+                                               ComponentMask_RigidBody|
+                                               ComponentMask_HalfDim|
+                                               ComponentMask_Sprite);
+
+                ECS->Positions[BombID] = ECS->Positions[Entity];
+                ECS->RigidBodies[BombID].Velocity = 10.0f*RandomDirection(ECS->RandomSeries);
+                ECS->RigidBodies[BombID].InvMass = 1.0f / 10.0f;
+                ECS->RigidBodies[BombID].FrictionCoeff = 0.8f;
+
+                ECS->HalfDims[BombID] = V2(6.0f, 6.0f);
+
+                sprite *Sprite = ECS->Sprites + BombID;
+                Sprite->BitmapID = Bitmap_Bomb;
+                Sprite->FrameTimer = 0.0f;
+                Sprite->FrameDuration = 0.0f;
+                Sprite->FrameIndex = 0;
+                Sprite->Color = Color_Red;
+            }
+        }
+    }
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     BEGIN_TIMED_BLOCK(GameUpdateAndRender);
@@ -241,11 +301,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         GameState->BitmapInfos = BitmapInfos;
         GameState->GeneralEntropy = RandomSeries(17);
 
+        GameState->ECS.RandomSeries = &GameState->GeneralEntropy;
+
         u32 CellSize = 16;
         r32 CellHalfDim = (r32)(CellSize/2);
         u32 CellCountX = BACKBUFFER_WIDTH/CellSize;
         u32 CellCountY = BACKBUFFER_HEIGHT/CellSize;
-
 
         for(u32 CellY = 0;
             CellY < CellCountY;
@@ -261,18 +322,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 u32 Choice = RandomChoice(&GameState->GeneralEntropy, 16);
                 if(Choice == 1 || Choice == 2)
                 {
-                    u32 Entity = ECS->EntityCount++;
+                    u32 Entity = AddEntity(ECS);
 
                     ECS->ComponentMasks[Entity] = (ComponentMask_Position|
                                                    ComponentMask_RigidBody|
                                                    ComponentMask_HalfDim|
-                                                   ComponentMask_Sprite);
+                                                   ComponentMask_Sprite|
+                                                   ComponentMask_Bomber);
 
                     ECS->Positions[Entity] = V2(X, Y);
-                    ECS->RigidBodies[Entity].Velocity =
-                        20.0f*Normalize(V2(RandomBilateral(&GameState->GeneralEntropy),
-                                           RandomBilateral(&GameState->GeneralEntropy)));
-                    ECS->RigidBodies[Entity].InvMass = 1.0f;
+                    ECS->RigidBodies[Entity].Velocity = 20.0f*RandomDirection(ECS->RandomSeries);
+                    ECS->RigidBodies[Entity].InvMass = 1.0f / 50.0f;
 
                     ECS->HalfDims[Entity] = V2(5.0f, 6.0f);
 
@@ -285,7 +345,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 }
                 else if(Choice == 3 || Choice == 4 || Choice == 5 || Choice == 6)
                 {
-                    u32 Entity = ECS->EntityCount++;
+                    u32 Entity = AddEntity(ECS);
 
                     ECS->ComponentMasks[Entity] = (ComponentMask_Position|
                                                    ComponentMask_HalfDim|
@@ -313,6 +373,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     PushClear(&RenderGroup, Color_Black);
 
     MovementSystem(ECS, Input->dt);
+    BomberSystem(ECS, Input->dt);
     CollisionDetectionSystem(ECS);
     CollisionResponseSystem(ECS);
     SpriteSystem(ECS, &RenderGroup, Input->dt);
