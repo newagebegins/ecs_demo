@@ -93,6 +93,14 @@ CollisionDetectionSystem(ecs *ECS)
 {
     BEGIN_TIMED_BLOCK(CollisionDetectionSystem);
 
+    for(u32 OverlapIndex = 0;
+        OverlapIndex < ECS->IgnoredOverlapsCount;
+        ++OverlapIndex)
+    {
+        overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+        Overlap->Ended = true;
+    }
+
     BEGIN_TIMED_BLOCK(PopulateGrid);
 
     for(u32 CellY = 0;
@@ -193,16 +201,36 @@ CollisionDetectionSystem(ecs *ECS)
 
                         if(OverlapX > 0.0f && OverlapY > 0.0f)
                         {
-                            v2 SeparationVector;
-                            if(OverlapX < OverlapY)
+                            // NOTE(slava): Overlap is detected
+
+                            b32 Ignored = false;
+
+                            for(u32 OverlapIndex = 0;
+                                OverlapIndex < ECS->IgnoredOverlapsCount;
+                                ++OverlapIndex)
                             {
-                                SeparationVector = {OverlapX * SeparationDirX, 0.0f};
+                                overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+                                if((Overlap->EntityA == EntityA) && (Overlap->EntityB == EntityB))
+                                {
+                                    Ignored = true;
+                                    Overlap->Ended = false;
+                                    break;
+                                }
                             }
-                            else
+
+                            if(!Ignored)
                             {
-                                SeparationVector = {0.0f, OverlapY * SeparationDirY};
+                                v2 SeparationVector;
+                                if(OverlapX < OverlapY)
+                                {
+                                    SeparationVector = {OverlapX * SeparationDirX, 0.0f};
+                                }
+                                else
+                                {
+                                    SeparationVector = {0.0f, OverlapY * SeparationDirY};
+                                }
+                                AddCollisionEvent(ECS, EntityA, EntityB, SeparationVector);
                             }
-                            AddCollisionEvent(ECS, EntityA, EntityB, SeparationVector);
                         }
                     }
                 }
@@ -214,54 +242,7 @@ CollisionDetectionSystem(ecs *ECS)
 
     END_TIMED_BLOCK(DetectCollisions);
 
-    END_TIMED_BLOCK(CollisionDetectionSystem);
-}
-
-internal void
-RemoveIgnoredOverlaps(ecs *ECS)
-{
-    for(u32 OverlapIndex = 0;
-        OverlapIndex < ECS->IgnoredOverlapsCount;
-        ++OverlapIndex)
-    {
-        overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
-        Overlap->Ended = true;
-    }
-
-    for(u32 EventIndex = 0;
-        EventIndex < ECS->CollisionEventsCount;
-        )
-    {
-        collision_event *Event = ECS->CollisionEvents + EventIndex;
-
-        b32 Ignored = false;
-
-        for(u32 OverlapIndex = 0;
-            OverlapIndex < ECS->IgnoredOverlapsCount;
-            ++OverlapIndex)
-        {
-            overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
-            if((Overlap->EntityA == Event->EntityA) &&
-               (Overlap->EntityB == Event->EntityB))
-            {
-                Ignored = true;
-                Overlap->Ended = false;
-                break;
-            }
-        }
-
-        if(Ignored)
-        {
-            collision_event *LastEvent = ECS->CollisionEvents + ECS->CollisionEventsCount - 1;
-            *Event = *LastEvent;
-            --ECS->CollisionEventsCount;
-        }
-        else
-        {
-            ++EventIndex;
-        }
-    }
-
+    // NOTE(slava): Remove ignored overlaps that has ended
     for(u32 OverlapIndex = 0;
         OverlapIndex < ECS->IgnoredOverlapsCount;
         )
@@ -279,6 +260,8 @@ RemoveIgnoredOverlaps(ecs *ECS)
             ++OverlapIndex;
         }
     }
+
+    END_TIMED_BLOCK(CollisionDetectionSystem);
 }
 
 internal void
@@ -712,7 +695,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     MovementSystem(ECS, Input->dt);
     BomberSystem(ECS, Input->dt);
     CollisionDetectionSystem(ECS);
-    RemoveIgnoredOverlaps(ECS);
     CollisionResponseSystem(ECS);
     DamageSystem(ECS);
     ForceFieldSystem(ECS);
