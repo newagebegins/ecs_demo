@@ -11,6 +11,7 @@ enum bitmap_id
     Bitmap_Bomb,
     Bitmap_Wall,
     Bitmap_Explosion,
+    Bitmap_Projectile,
 
     Bitmap_Count,
 };

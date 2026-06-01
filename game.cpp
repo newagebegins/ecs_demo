@@ -58,7 +58,7 @@ MovementSystem(ecs *ECS, r32 dt)
 
             Body->Velocity += dt*Body->Acceleration;
 
-            r32 MaxSpeed = 100.0f;
+            r32 MaxSpeed = 150.0f;
             r32 Speed = Length(Body->Velocity);
             if(Speed > MaxSpeed)
             {
@@ -365,6 +365,7 @@ DamageSystem(ecs *ECS)
                     ECS->BlinkTimer[HealthID] = 0.1f;
                 }
             }
+            QueueDestroy(ECS, DamageID);
         }
     }
 }
@@ -497,7 +498,7 @@ BombSystem(ecs *ECS)
         u32 EntityID = ECS->DestroyedEntities[DestroyedIndex];
         if(ECS->ComponentMasks[EntityID] & ComponentMask_Bomb)
         {
-            v2 HalfDim = V2(32.0f, 32.0f);
+            v2 HalfDim = V2(16.0f, 16.0f);
 
             u32 FieldID = AddEntity(ECS);
             ECS->ComponentMasks[FieldID] = (ComponentMask_Position|
@@ -532,6 +533,38 @@ BombSystem(ecs *ECS)
             ECS->HalfDims[DamageID] = HalfDim;
             ECS->DestroyTimers[DamageID] = 0.0f;
             ECS->Damage[DamageID] = 1;
+
+            v2 PointsOnCircle[] =
+            {
+                {1, 0}, {0.707f, 0.707f}, {0, 1}, {-0.707f, 0.707f}, {-1, 0},
+                {-0.707f, -0.707f}, {0, -1}, {0.707f, -0.707f},
+            };
+
+            for(u32 PointIndex = 0;
+                PointIndex < ArrayCount(PointsOnCircle);
+                ++PointIndex)
+            {
+                u32 ProjectileID = AddEntity(ECS);
+
+                ECS->ComponentMasks[ProjectileID] = (ComponentMask_Position|
+                                                     ComponentMask_RigidBody|
+                                                     ComponentMask_HalfDim|
+                                                     ComponentMask_Sprite|
+                                                     ComponentMask_Damage);
+                v2 P = ECS->Positions[EntityID] + 8.0f*PointsOnCircle[PointIndex];
+                ECS->Positions[ProjectileID] = P;
+                ECS->RigidBodies[ProjectileID].Velocity = 200.0f*(P - ECS->Positions[EntityID]);
+                ECS->RigidBodies[ProjectileID].Acceleration = {};
+                ECS->RigidBodies[ProjectileID].InvMass = 1.0f / 0.01f;
+                ECS->RigidBodies[ProjectileID].FrictionCoeff = 0.0f;
+                ECS->HalfDims[ProjectileID] = V2(2.0f, 2.0f);
+                ECS->Sprites[ProjectileID].BitmapID = Bitmap_Projectile;
+                ECS->Sprites[ProjectileID].FrameTimer = 0.0f;
+                ECS->Sprites[ProjectileID].FrameDuration = 0.0f;
+                ECS->Sprites[ProjectileID].FrameIndex = 0;
+                ECS->Sprites[ProjectileID].Color = Color_BrightRed;
+                ECS->Damage[ProjectileID] = 1;
+            }
         }
     }
 }

@@ -113,7 +113,7 @@ struct collision_event
 
 struct grid_cell
 {
-    u32 Entities[32];
+    u32 Entities[64];
     u32 EntityCount;
 };
 
