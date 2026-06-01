@@ -218,7 +218,7 @@ CollisionDetectionSystem(ecs *ECS)
 }
 
 internal void
-CollisionResponseSystem(ecs *ECS)
+RemoveIgnoredOverlaps(ecs *ECS)
 {
     for(u32 OverlapIndex = 0;
         OverlapIndex < ECS->IgnoredOverlapsCount;
@@ -230,43 +230,35 @@ CollisionResponseSystem(ecs *ECS)
 
     for(u32 EventIndex = 0;
         EventIndex < ECS->CollisionEventsCount;
-        ++EventIndex)
+        )
     {
         collision_event *Event = ECS->CollisionEvents + EventIndex;
 
-        if((ECS->ComponentMasks[Event->EntityA] & ComponentMask_RigidBody) &&
-           (ECS->ComponentMasks[Event->EntityB] & ComponentMask_RigidBody))
+        b32 Ignored = false;
+
+        for(u32 OverlapIndex = 0;
+            OverlapIndex < ECS->IgnoredOverlapsCount;
+            ++OverlapIndex)
         {
-            b32 Ignored = false;
-
-            for(u32 OverlapIndex = 0;
-                OverlapIndex < ECS->IgnoredOverlapsCount;
-                ++OverlapIndex)
+            overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
+            if((Overlap->EntityA == Event->EntityA) &&
+               (Overlap->EntityB == Event->EntityB))
             {
-                overlap *Overlap = ECS->IgnoredOverlaps + OverlapIndex;
-                if((Overlap->EntityA == Event->EntityA) &&
-                   (Overlap->EntityB == Event->EntityB))
-                {
-                    Ignored = true;
-                    Overlap->Ended = false;
-                    break;
-                }
+                Ignored = true;
+                Overlap->Ended = false;
+                break;
             }
+        }
 
-            if(!Ignored)
-            {
-                rigid_body *BodyA = ECS->RigidBodies + Event->EntityA;
-                rigid_body *BodyB = ECS->RigidBodies + Event->EntityB;
-
-                r32 TotalInvMass = BodyA->InvMass + BodyB->InvMass;
-                Assert(TotalInvMass != 0.0f);
-
-                r32 SpringStiffness = 500.0f;
-                v2 SpringForce = Event->SeparationVector * SpringStiffness;
-
-                BodyA->Acceleration += SpringForce * (BodyA->InvMass / TotalInvMass);
-                BodyB->Acceleration -= SpringForce * (BodyB->InvMass / TotalInvMass);
-            }
+        if(Ignored)
+        {
+            collision_event *LastEvent = ECS->CollisionEvents + ECS->CollisionEventsCount - 1;
+            *Event = *LastEvent;
+            --ECS->CollisionEventsCount;
+        }
+        else
+        {
+            ++EventIndex;
         }
     }
 
@@ -290,6 +282,101 @@ CollisionResponseSystem(ecs *ECS)
 }
 
 internal void
+CollisionResponseSystem(ecs *ECS)
+{
+    for(u32 EventIndex = 0;
+        EventIndex < ECS->CollisionEventsCount;
+        ++EventIndex)
+    {
+        collision_event *Event = ECS->CollisionEvents + EventIndex;
+
+        if((ECS->ComponentMasks[Event->EntityA] & ComponentMask_RigidBody) &&
+           (ECS->ComponentMasks[Event->EntityB] & ComponentMask_RigidBody))
+        {
+            rigid_body *BodyA = ECS->RigidBodies + Event->EntityA;
+            rigid_body *BodyB = ECS->RigidBodies + Event->EntityB;
+
+            r32 TotalInvMass = BodyA->InvMass + BodyB->InvMass;
+            Assert(TotalInvMass != 0.0f);
+
+            r32 SpringStiffness = 500.0f;
+            v2 SpringForce = Event->SeparationVector * SpringStiffness;
+
+            BodyA->Acceleration += SpringForce * (BodyA->InvMass / TotalInvMass);
+            BodyB->Acceleration -= SpringForce * (BodyB->InvMass / TotalInvMass);
+        }
+    }
+}
+
+inline void
+QueueDestroy(ecs *ECS, u32 Entity)
+{
+    if(ECS->DestroyedEntitiesCount < ArrayCount(ECS->DestroyedEntities))
+    {
+        ECS->DestroyedEntities[ECS->DestroyedEntitiesCount++] = Entity;
+    }
+    else
+    {
+        Assert(!"Out of memory");
+    }
+}
+
+inline void
+IgnoreOverlap(ecs *ECS, u32 EntityA, u32 EntityB)
+{
+    if(ECS->IgnoredOverlapsCount < ArrayCount(ECS->IgnoredOverlaps))
+    {
+        u32 Min = Minimum(EntityA, EntityB);
+        u32 Max = Maximum(EntityA, EntityB);
+        ECS->IgnoredOverlaps[ECS->IgnoredOverlapsCount++] = {Min, Max};
+    }
+    else
+    {
+        Assert(!"Out of memory");
+    }
+}
+
+internal void
+DamageSystem(ecs *ECS)
+{
+    for(u32 EventIndex = 0;
+        EventIndex < ECS->CollisionEventsCount;
+        ++EventIndex)
+    {
+        collision_event *Event = ECS->CollisionEvents + EventIndex;
+
+        u32 HealthID = 0;
+        u32 DamageID = 0;
+
+        u32 MaskA = ECS->ComponentMasks[Event->EntityA];
+        u32 MaskB = ECS->ComponentMasks[Event->EntityB];
+
+        if((MaskA & ComponentMask_Health) && (MaskB & ComponentMask_Damage))
+        {
+            HealthID = Event->EntityA;
+            DamageID = Event->EntityB;
+        }
+        else if((MaskB & ComponentMask_Health) && (MaskA & ComponentMask_Damage))
+        {
+            HealthID = Event->EntityB;
+            DamageID = Event->EntityA;
+        }
+
+        if(HealthID && DamageID)
+        {
+            if(ECS->Health[HealthID] > 0)
+            {
+                ECS->Health[HealthID] -= ECS->Damage[DamageID];
+                if(ECS->Health[HealthID] <= 0)
+                {
+                    QueueDestroy(ECS, HealthID);
+                }
+            }
+        }
+    }
+}
+
+internal void
 ForceFieldSystem(ecs *ECS)
 {
     for(u32 EventIndex = 0;
@@ -301,14 +388,15 @@ ForceFieldSystem(ecs *ECS)
         u32 FieldID = 0;
         u32 BodyID = 0;
 
-        if((ECS->ComponentMasks[Event->EntityA] & ComponentMask_ForceField) &&
-           (ECS->ComponentMasks[Event->EntityB] & ComponentMask_RigidBody))
+        u32 MaskA = ECS->ComponentMasks[Event->EntityA];
+        u32 MaskB = ECS->ComponentMasks[Event->EntityB];
+
+        if((MaskA & ComponentMask_ForceField) && (MaskB & ComponentMask_RigidBody))
         {
             FieldID = Event->EntityA;
             BodyID = Event->EntityB;
         }
-        else if((ECS->ComponentMasks[Event->EntityB] & ComponentMask_ForceField) &&
-                (ECS->ComponentMasks[Event->EntityA] & ComponentMask_RigidBody))
+        else if((MaskB & ComponentMask_ForceField) && (MaskA & ComponentMask_RigidBody))
         {
             FieldID = Event->EntityB;
             BodyID = Event->EntityA;
@@ -354,15 +442,18 @@ internal void
 RemoveEntity(ecs *ECS, u32 EntityID)
 {
     Assert(EntityID);
-    ECS->ComponentMasks[EntityID] = 0;
+    if(ECS->ComponentMasks[EntityID])
+    {
+        ECS->ComponentMasks[EntityID] = 0;
 
-    if(ECS->FreeEntitiesCount < ArrayCount(ECS->FreeEntities))
-    {
-        ECS->FreeEntities[ECS->FreeEntitiesCount++] = EntityID;
-    }
-    else
-    {
-        Assert(!"Out of memory");
+        if(ECS->FreeEntitiesCount < ArrayCount(ECS->FreeEntities))
+        {
+            ECS->FreeEntities[ECS->FreeEntitiesCount++] = EntityID;
+        }
+        else
+        {
+            Assert(!"Out of memory");
+        }
     }
 }
 
@@ -375,18 +466,10 @@ DestroyTimerSystem(ecs *ECS, r32 dt)
     {
         if(ECS->ComponentMasks[Entity] & ComponentMask_DestroyTimer)
         {
-            Assert(ECS->DestroyTimers[Entity] > 0.0f);
             ECS->DestroyTimers[Entity] -= dt;
             if(ECS->DestroyTimers[Entity] <= 0.0f)
             {
-                if(ECS->DestroyedEntitiesCount < ArrayCount(ECS->DestroyedEntities))
-                {
-                    ECS->DestroyedEntities[ECS->DestroyedEntitiesCount++] = Entity;
-                }
-                else
-                {
-                    Assert(!"Out of memory");
-                }
+                QueueDestroy(ECS, Entity);
             }
         }
     }
@@ -402,17 +485,17 @@ BombSystem(ecs *ECS)
         u32 EntityID = ECS->DestroyedEntities[DestroyedIndex];
         if(ECS->ComponentMasks[EntityID] & ComponentMask_Bomb)
         {
-            u32 FieldID = AddEntity(ECS);
+            v2 HalfDim = V2(32.0f, 32.0f);
 
+            u32 FieldID = AddEntity(ECS);
             ECS->ComponentMasks[FieldID] = (ComponentMask_Position|
                                             ComponentMask_HalfDim|
                                             ComponentMask_Sprite|
                                             ComponentMask_ForceField|
                                             ComponentMask_DestroyTimer);
-
             ECS->Positions[FieldID] = ECS->Positions[EntityID];
-            ECS->HalfDims[FieldID] = V2(40.0f, 40.0f);
-            ECS->ForceFields[FieldID].RadialForce = 20000.0f;
+            ECS->HalfDims[FieldID] = HalfDim;
+            ECS->ForceFields[FieldID].RadialForce = 40000.0f;
             ECS->DestroyTimers[FieldID] = 0.2f;
 
             sprite *Sprite = ECS->Sprites + FieldID;
@@ -421,6 +504,22 @@ BombSystem(ecs *ECS)
             Sprite->FrameDuration = 0.0f;
             Sprite->FrameIndex = 0;
             Sprite->Color = Color_White;
+
+            // NOTE(slava): We can't add Damage component to a field entity because
+            // a field acts on the entities inside it across multiple frames, so its
+            // overlap with this entities can't be ignored, and it would do damage every
+            // frame, which is not what we want.
+            // So we add a separate entity to do damage which lives for one frame.
+
+            u32 DamageID = AddEntity(ECS);
+            ECS->ComponentMasks[DamageID] = (ComponentMask_Position|
+                                             ComponentMask_HalfDim|
+                                             ComponentMask_DestroyTimer|
+                                             ComponentMask_Damage);
+            ECS->Positions[DamageID] = ECS->Positions[EntityID];
+            ECS->HalfDims[DamageID] = HalfDim;
+            ECS->DestroyTimers[DamageID] = 0.0f;
+            ECS->Damage[DamageID] = 1;
         }
     }
 }
@@ -448,7 +547,7 @@ BomberSystem(ecs *ECS, r32 dt)
     {
         if(ECS->ComponentMasks[Entity] & ComponentMask_Bomber)
         {
-            if(RandomChoice(ECS->RandomSeries, 2000) == 7)
+            if(RandomChoice(ECS->RandomSeries, 1500) == 7)
             {
                 u32 BombID = AddEntity(ECS);
 
@@ -457,7 +556,8 @@ BomberSystem(ecs *ECS, r32 dt)
                                                ComponentMask_HalfDim|
                                                ComponentMask_Sprite|
                                                ComponentMask_DestroyTimer|
-                                               ComponentMask_Bomb);
+                                               ComponentMask_Bomb|
+                                               ComponentMask_Health);
 
                 ECS->Positions[BombID] = ECS->Positions[Entity];
                 ECS->RigidBodies[BombID].Velocity = 7.0f*PIXELS_PER_METER*RandomDirection(ECS->RandomSeries);
@@ -474,17 +574,9 @@ BomberSystem(ecs *ECS, r32 dt)
                 Sprite->Color = Color_Red;
 
                 ECS->DestroyTimers[BombID] = 3.0f;
+                ECS->Health[BombID] = 1;
 
-                if(ECS->IgnoredOverlapsCount < ArrayCount(ECS->IgnoredOverlaps))
-                {
-                    u32 EntityA = Minimum(Entity, BombID);
-                    u32 EntityB = Maximum(Entity, BombID);
-                    ECS->IgnoredOverlaps[ECS->IgnoredOverlapsCount++] = {EntityA, EntityB};
-                }
-                else
-                {
-                    Assert(!"Out of memory");
-                }
+                IgnoreOverlap(ECS, Entity, BombID);
             }
         }
     }
@@ -537,7 +629,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                    ComponentMask_RigidBody|
                                                    ComponentMask_HalfDim|
                                                    ComponentMask_Sprite|
-                                                   ComponentMask_Bomber);
+                                                   ComponentMask_Bomber|
+                                                   ComponentMask_Health);
 
                     ECS->Positions[Entity] = V2(X, Y);
                     ECS->RigidBodies[Entity].Velocity = 20.0f*RandomDirection(ECS->RandomSeries);
@@ -551,6 +644,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Sprite->FrameDuration = 0.2f;
                     Sprite->FrameIndex = 0;
                     Sprite->Color = Color_White;
+
+                    ECS->Health[Entity] = 2;
                 }
                 else if(Choice == 3 || Choice == 4 || Choice == 5 || Choice == 6)
                 {
@@ -559,7 +654,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     ECS->ComponentMasks[Entity] = (ComponentMask_Position|
                                                    ComponentMask_RigidBody|
                                                    ComponentMask_HalfDim|
-                                                   ComponentMask_Sprite);
+                                                   ComponentMask_Sprite|
+                                                   ComponentMask_Health);
 
                     ECS->Positions[Entity] = V2(X, Y);
                     ECS->HalfDims[Entity] = V2(8.0f, 8.0f);
@@ -570,6 +666,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Sprite->FrameDuration = 0.0f;
                     Sprite->FrameIndex = 0;
                     Sprite->Color = Color_Cyan;
+
+                    ECS->Health[Entity] = 4;
                 }
             }
         }
@@ -585,7 +683,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     MovementSystem(ECS, Input->dt);
     BomberSystem(ECS, Input->dt);
     CollisionDetectionSystem(ECS);
+    RemoveIgnoredOverlaps(ECS);
     CollisionResponseSystem(ECS);
+    DamageSystem(ECS);
     ForceFieldSystem(ECS);
     DestroyTimerSystem(ECS, Input->dt);
     BombSystem(ECS);

@@ -127,6 +127,8 @@ enum component_masks
     ComponentMask_ForceField = (1 << 5),
     ComponentMask_DestroyTimer = (1 << 6),
     ComponentMask_Bomb = (1 << 7),
+    ComponentMask_Health = (1 << 8),
+    ComponentMask_Damage = (1 << 9),
 };
 
 struct rigid_body
@@ -159,6 +161,8 @@ struct ecs
     sprite Sprites[MAX_ENTITY_COUNT];
     force_field ForceFields[MAX_ENTITY_COUNT];
     r32 DestroyTimers[MAX_ENTITY_COUNT];
+    s32 Health[MAX_ENTITY_COUNT];
+    s32 Damage[MAX_ENTITY_COUNT];
 
     u32 EntityCount;
 
