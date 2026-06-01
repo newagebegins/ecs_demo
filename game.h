@@ -166,6 +166,9 @@ struct ecs
 
     u32 EntityCount;
 
+    color SavedColor[MAX_ENTITY_COUNT];
+    r32 BlinkTimer[MAX_ENTITY_COUNT];
+
     u32 FreeEntities[MAX_ENTITY_COUNT];
     u32 FreeEntitiesCount;
 

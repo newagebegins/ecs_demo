@@ -371,6 +371,34 @@ DamageSystem(ecs *ECS)
                 {
                     QueueDestroy(ECS, HealthID);
                 }
+                else
+                {
+                    color DamageColor = Color_Yellow;
+                    if(ECS->Sprites[HealthID].Color != DamageColor)
+                    {
+                        ECS->SavedColor[HealthID] = ECS->Sprites[HealthID].Color;
+                        ECS->Sprites[HealthID].Color = DamageColor;
+                    }
+                    ECS->BlinkTimer[HealthID] = 0.1f;
+                }
+            }
+        }
+    }
+}
+
+internal void
+BlinkSystem(ecs *ECS, r32 dt)
+{
+    for (u32 EntityID = 1;
+         EntityID < ECS->EntityCount;
+         ++EntityID)
+    {
+        if(ECS->BlinkTimer[EntityID] > 0.0f)
+        {
+            ECS->BlinkTimer[EntityID] -= dt;
+            if(ECS->BlinkTimer[EntityID] <= 0.0f)
+            {
+                ECS->Sprites[EntityID].Color = ECS->SavedColor[EntityID];
             }
         }
     }
@@ -445,6 +473,7 @@ RemoveEntity(ecs *ECS, u32 EntityID)
     if(ECS->ComponentMasks[EntityID])
     {
         ECS->ComponentMasks[EntityID] = 0;
+        ECS->BlinkTimer[EntityID] = 0.0f;
 
         if(ECS->FreeEntitiesCount < ArrayCount(ECS->FreeEntities))
         {
@@ -645,7 +674,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Sprite->FrameIndex = 0;
                     Sprite->Color = Color_White;
 
-                    ECS->Health[Entity] = 2;
+                    ECS->Health[Entity] = 3;
                 }
                 else if(Choice == 3 || Choice == 4 || Choice == 5 || Choice == 6)
                 {
@@ -667,7 +696,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     Sprite->FrameIndex = 0;
                     Sprite->Color = Color_Cyan;
 
-                    ECS->Health[Entity] = 4;
+                    ECS->Health[Entity] = 6;
                 }
             }
         }
@@ -689,6 +718,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ForceFieldSystem(ECS);
     DestroyTimerSystem(ECS, Input->dt);
     BombSystem(ECS);
+    BlinkSystem(ECS, Input->dt);
     SpriteSystem(ECS, &RenderGroup, Input->dt);
     EntityDestroySystem(ECS);
 
