@@ -351,7 +351,7 @@ AddEntity(ecs *ECS)
 }
 
 internal void
-DestroyEntity(ecs *ECS, u32 EntityID)
+RemoveEntity(ecs *ECS, u32 EntityID)
 {
     Assert(EntityID);
     ECS->ComponentMasks[EntityID] = 0;
@@ -433,7 +433,7 @@ EntityDestroySystem(ecs *ECS)
         ++DestroyedIndex)
     {
         u32 EntityID = ECS->DestroyedEntities[DestroyedIndex];
-        DestroyEntity(ECS, EntityID);
+        RemoveEntity(ECS, EntityID);
     }
 
     ECS->DestroyedEntitiesCount = 0;
