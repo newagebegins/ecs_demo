@@ -297,8 +297,8 @@ Length(v2 V)
 inline v2
 Normalize(v2 A)
 {
-    v2 Result = A / Length(A);
-
+    r32 Len = Length(A);
+    v2 Result = ((Len == 0.0f) ? A : (A / Len));
     return(Result);
 }
 

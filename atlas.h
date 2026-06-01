@@ -10,6 +10,7 @@ enum bitmap_id
     Bitmap_Guy,
     Bitmap_Bomb,
     Bitmap_Wall,
+    Bitmap_Explosion,
 
     Bitmap_Count,
 };

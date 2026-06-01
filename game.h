@@ -124,6 +124,9 @@ enum component_masks
     ComponentMask_HalfDim = (1 << 2),
     ComponentMask_Sprite = (1 << 3),
     ComponentMask_Bomber = (1 << 4),
+    ComponentMask_ForceField = (1 << 5),
+    ComponentMask_DestroyTimer = (1 << 6),
+    ComponentMask_Bomb = (1 << 7),
 };
 
 struct rigid_body
@@ -141,6 +144,11 @@ struct overlap
     b32 Ended;
 };
 
+struct force_field
+{
+    r32 RadialForce;
+};
+
 struct ecs
 {
     u32 ComponentMasks[MAX_ENTITY_COUNT];
@@ -149,18 +157,26 @@ struct ecs
     rigid_body RigidBodies[MAX_ENTITY_COUNT];
     v2 HalfDims[MAX_ENTITY_COUNT];
     sprite Sprites[MAX_ENTITY_COUNT];
+    force_field ForceFields[MAX_ENTITY_COUNT];
+    r32 DestroyTimers[MAX_ENTITY_COUNT];
 
     u32 EntityCount;
 
+    u32 FreeEntities[MAX_ENTITY_COUNT];
+    u32 FreeEntitiesCount;
+
     grid_cell Grid[CELL_COUNT_Y][CELL_COUNT_X];
 
-    collision_event CollisionEvents[MAX_ENTITY_COUNT/4];
+    collision_event CollisionEvents[MAX_ENTITY_COUNT];
     u32 CollisionEventsCount;
 
-    overlap IgnoredOverlaps[32];
+    overlap IgnoredOverlaps[MAX_ENTITY_COUNT];
     u32 IgnoredOverlapsCount;
 
     random_series *RandomSeries;
+
+    u32 DestroyedEntities[MAX_ENTITY_COUNT];
+    u32 DestroyedEntitiesCount;
 };
 
 struct game_state
